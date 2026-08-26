@@ -10,20 +10,24 @@ import {
   ChevronRight, 
   Navigation,
   Thermometer,
-  Eye
+  Eye,
+  X
 } from 'lucide-react';
 import { Iceberg } from '../types';
+import { bridgeAudio } from '../services/audioAlerts';
 
 interface IcebergTrajectoryViewerProps {
   icebergs: Iceberg[];
   selectedIceberg: Iceberg | null;
   onSelectIceberg: (iceberg: Iceberg) => void;
+  onClose?: () => void;
 }
 
 export const IcebergTrajectoryViewer: React.FC<IcebergTrajectoryViewerProps> = ({
   icebergs,
   selectedIceberg,
-  onSelectIceberg
+  onSelectIceberg,
+  onClose
 }) => {
   const currentBerg = selectedIceberg || icebergs[0];
   const [activeTab, setActiveTab] = useState<'physics' | 'trajectory' | 'monte_carlo'>('physics');
@@ -40,265 +44,145 @@ export const IcebergTrajectoryViewer: React.FC<IcebergTrajectoryViewerProps> = (
   };
 
   return (
-    <div className="w-full h-full bg-polar-900 p-4 overflow-y-auto font-mono select-none">
-      <div className="max-w-6xl mx-auto space-y-4">
-        {/* Header Title */}
-        <div className="bg-polar-850 border border-polar-700 rounded-xl p-4 shadow-xl flex items-center justify-between">
+    <div className="w-full h-full bg-polar-900 p-3 overflow-y-auto font-mono select-none">
+      <div className="max-w-6xl mx-auto space-y-3">
+        {/* Header with Close */}
+        <div className="bg-polar-850 border border-polar-700 rounded-lg p-3 shadow-xl flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="p-2.5 rounded-lg bg-sky-950 border border-sky-600 text-sky-400">
-              <Waves className="w-6 h-6" />
+            <div className="p-2 rounded-lg bg-sky-950 border border-sky-600 text-sky-400">
+              <Waves className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-100 flex items-center space-x-2">
+              <h2 className="text-sm font-bold text-slate-100 flex items-center space-x-2">
                 <span>ANTARCTIC ICEBERG HYDRODYNAMIC DRIFT ENGINE</span>
-                <span className="px-2 py-0.5 rounded text-[10px] bg-red-950 text-red-300 border border-red-700">
+                <span className="px-1.5 py-0.2 rounded text-[10px] bg-red-950 text-red-300 border border-red-700">
                   MONTE CARLO DRIFT MODEL
                 </span>
               </h2>
-              <p className="text-xs text-slate-400">
+              <p className="text-[10px] text-slate-400">
                 Atmospheric Sail Drag, Deep Keel Ekman Advection & Coriolis Dynamics
               </p>
             </div>
           </div>
+
+          {onClose && (
+            <button
+              onClick={() => {
+                onClose();
+                bridgeAudio.playTacticalClick();
+              }}
+              className="bg-polar-800 hover:bg-polar-700 text-slate-300 hover:text-white px-2.5 py-1 rounded border border-polar-600 text-xs flex items-center space-x-1"
+              title="Return to ECDIS Map (ESC)"
+            >
+              <X className="w-3.5 h-3.5 text-red-400" />
+              <span>CLOSE [ESC]</span>
+            </button>
+          )}
         </div>
 
-        {/* Iceberg Selector Pill List */}
+        {/* Iceberg Selector Strip */}
         <div className="flex items-center space-x-2 overflow-x-auto pb-1">
-          {icebergs.map((berg) => {
-            const isSelected = berg.id === currentBerg.id;
+          {icebergs.map((b) => {
+            const isSel = b.id === currentBerg.id;
             return (
               <button
-                key={berg.id}
-                onClick={() => onSelectIceberg(berg)}
-                className={`px-3 py-2 rounded-lg border text-xs whitespace-nowrap transition-all flex items-center space-x-2 ${
-                  isSelected
-                    ? 'bg-sky-950 border-sky-400 text-white shadow-lg'
-                    : 'bg-polar-850 border-polar-700 text-slate-400 hover:text-slate-200'
-                }`}
+                key={b.id}
+                onClick={() => {
+                  onSelectIceberg(b);
+                  bridgeAudio.playTacticalClick();
+                }}
+                className={'px-3 py-1.5 rounded-lg border text-xs font-bold whitespace-nowrap transition flex items-center space-x-2 ' + (
+                  isSel
+                    ? 'bg-sky-950 border-sky-400 text-white shadow-md'
+                    : 'bg-polar-850 border-polar-700 text-slate-400 hover:bg-polar-800 hover:text-slate-200'
+                )}
               >
-                <span className="font-bold">{berg.id}</span>
-                <span className="text-[10px] text-slate-400">({berg.length_km}km)</span>
+                <span>{b.name}</span>
+                <span className={'px-1.5 py-0.2 rounded text-[9px] ' + (
+                  b.threat_level === 'EXTREME' ? 'bg-red-900 text-red-200' :
+                  b.threat_level === 'HIGH' ? 'bg-amber-900 text-amber-200' : 'bg-sky-900 text-sky-200'
+                )}>
+                  {b.threat_level}
+                </span>
               </button>
             );
           })}
         </div>
 
-        {/* Selected Iceberg Deep Inspection Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          {/* Left Column: Physical & Morphological Profile (5 cols) */}
-          <div className="lg:col-span-5 space-y-4">
-            <div className="bg-polar-850 border border-polar-700 rounded-xl p-4 shadow-xl space-y-3">
-              <div className="flex items-center justify-between border-b border-polar-700 pb-2">
-                <span className="font-bold text-sm text-sky-400">{currentBerg.name}</span>
-                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                  currentBerg.threat_level === 'EXTREME' ? 'bg-red-950 text-red-300 border border-red-700' : 'bg-amber-950 text-amber-300 border border-amber-700'
-                }`}>
-                  {currentBerg.threat_level}
-                </span>
-              </div>
-
-              <p className="text-[11px] text-slate-400">
-                <strong>Origin:</strong> {currentBerg.origin_shelf}
-              </p>
-
-              <div className="grid grid-cols-2 gap-2 text-xs pt-1">
-                <div className="bg-polar-900 p-2 rounded border border-polar-700">
-                  <span className="text-slate-500 text-[9px] block">DIMENSIONS</span>
-                  <span className="text-slate-200 font-bold">{currentBerg.length_km} x {currentBerg.width_km} km</span>
-                </div>
-                <div className="bg-polar-900 p-2 rounded border border-polar-700">
-                  <span className="text-slate-500 text-[9px] block">SURFACE AREA</span>
-                  <span className="text-slate-200 font-bold">{currentBerg.area_sq_km.toLocaleString()} kmÂ²</span>
-                </div>
-                <div className="bg-polar-900 p-2 rounded border border-polar-700">
-                  <span className="text-slate-500 text-[9px] block">ESTIMATED MASS</span>
-                  <span className="text-sky-300 font-bold">{currentBerg.estimated_mass_gigatons} Gt</span>
-                </div>
-                <div className="bg-polar-900 p-2 rounded border border-polar-700">
-                  <span className="text-slate-500 text-[9px] block">SUBMERGED DRAFT</span>
-                  <span className="text-slate-200 font-bold">{currentBerg.draft_m} m</span>
-                </div>
-              </div>
-
-              <div className="bg-polar-900 p-3 rounded-lg border border-polar-700 space-y-1.5 text-xs">
-                <span className="text-slate-400 font-bold block text-[10px]">CURRENT DRIFT VECTOR</span>
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-300">Drift Speed:</span>
-                  <span className="text-emerald-400 font-bold text-sm">{drift.drift_speed_kts} kts</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-300">Heading (COG):</span>
-                  <span className="text-slate-200 font-bold">{drift.drift_heading_deg}Â° True</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-300">Hazard Corridor:</span>
-                  <span className="text-amber-300 text-[11px] font-semibold">{currentBerg.hazard_corridor}</span>
-                </div>
-              </div>
-
-              <p className="text-xs text-slate-300 leading-relaxed font-sans bg-polar-950 p-2.5 rounded border border-polar-800">
-                {currentBerg.notes}
-              </p>
-            </div>
+        {/* Selected Berg Overview */}
+        <div className="bg-polar-850 border border-polar-700 rounded-lg p-4 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+          <div className="bg-polar-900 p-2.5 rounded border border-polar-700">
+            <span className="text-slate-400 text-[10px] block">ORIGIN SHELF</span>
+            <span className="text-white font-bold">{currentBerg.origin_shelf}</span>
           </div>
-
-          {/* Right Column: Hydrodynamic Physics & Monte Carlo Forecasts (7 cols) */}
-          <div className="lg:col-span-7 space-y-4">
-            {/* Tab Navigation */}
-            <div className="flex items-center space-x-1 bg-polar-850 p-1 rounded-xl border border-polar-700">
-              <button
-                onClick={() => setActiveTab('physics')}
-                className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                  activeTab === 'physics' ? 'bg-sky-600 text-white' : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                Force Balance Model
-              </button>
-              <button
-                onClick={() => setActiveTab('trajectory')}
-                className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                  activeTab === 'trajectory' ? 'bg-sky-600 text-white' : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                72h Trajectory Track
-              </button>
-              <button
-                onClick={() => setActiveTab('monte_carlo')}
-                className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                  activeTab === 'monte_carlo' ? 'bg-sky-600 text-white' : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                Monte Carlo Dispersion
-              </button>
-            </div>
-
-            {/* Tab 1: Dynamic Force Balance */}
-            {activeTab === 'physics' && (
-              <div className="bg-polar-850 border border-polar-700 rounded-xl p-4 shadow-xl space-y-3">
-                <h4 className="text-xs font-bold text-slate-200 border-b border-polar-700 pb-2 flex items-center space-x-2">
-                  <Activity className="w-4 h-4 text-sky-400" />
-                  <span>STEADY-STATE DYNAMICAL FORCE EQUILIBRIUM</span>
-                </h4>
-
-                <div className="bg-polar-950 p-3 rounded-lg border border-polar-800 text-xs text-sky-300 font-mono leading-relaxed">
-                  m (d u_i / dt + f k x u_i) = F_air (Sail Drag) + F_water (Keel Drag) + F_coriolis
-                </div>
-
-                <div className="space-y-2 text-xs pt-1">
-                  <div>
-                    <div className="flex justify-between text-[11px] mb-1">
-                      <span className="text-slate-300">Deep Oceanic Current Drag (Keel Friction 90% Submerged)</span>
-                      <span className="text-teal-400 font-bold">{drift.current_influence_pct}%</span>
-                    </div>
-                    <div className="w-full bg-polar-900 rounded-full h-2">
-                      <div 
-                        className="bg-teal-500 h-2 rounded-full" 
-                        style={{ width: `${drift.current_influence_pct}%` }}
-                      ></div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between text-[11px] mb-1">
-                      <span className="text-slate-300">Atmospheric Wind Drag (Freeboard Sail Area)</span>
-                      <span className="text-sky-400 font-bold">{drift.wind_influence_pct}%</span>
-                    </div>
-                    <div className="w-full bg-polar-900 rounded-full h-2">
-                      <div 
-                        className="bg-sky-500 h-2 rounded-full" 
-                        style={{ width: `${drift.wind_influence_pct}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 text-xs pt-2">
-                  <div className="bg-polar-900 p-2.5 rounded border border-polar-700">
-                    <span className="text-slate-400 text-[10px] block">CORIOLIS DEFLECTION</span>
-                    <span className="text-slate-100 font-semibold">Left of Wind Flow (SH)</span>
-                  </div>
-                  <div className="bg-polar-900 p-2.5 rounded border border-polar-700">
-                    <span className="text-slate-400 text-[10px] block">AIR DRAG COEFF (C_a)</span>
-                    <span className="text-slate-100 font-semibold">1.35 (Tabular Wall)</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Tab 2: 72h Deterministic Trajectory */}
-            {activeTab === 'trajectory' && (
-              <div className="bg-polar-850 border border-polar-700 rounded-xl p-4 shadow-xl space-y-3">
-                <h4 className="text-xs font-bold text-slate-200 border-b border-polar-700 pb-2">
-                  72-HOUR DETERMINISTIC FORECAST WAYPOINTS
-                </h4>
-
-                <div className="overflow-x-auto max-h-56 overflow-y-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="text-[10px] text-slate-400 border-b border-polar-800 bg-polar-900 sticky top-0">
-                      <tr>
-                        <th className="py-1 px-2">HORIZON</th>
-                        <th className="py-1 px-2">LATITUDE</th>
-                        <th className="py-1 px-2">LONGITUDE</th>
-                        <th className="py-1 px-2">DRIFT SPD</th>
-                        <th className="py-1 px-2">HDG (COG)</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-polar-800 text-[11px]">
-                      {currentBerg.trajectory_72h?.map((pt, idx) => (
-                        <tr key={idx} className="hover:bg-polar-800/50">
-                          <td className="py-1.5 px-2 font-bold text-sky-400">+{pt.hour} hrs</td>
-                          <td className="py-1.5 px-2 text-slate-300">{Math.abs(pt.lat).toFixed(3)}Â°S</td>
-                          <td className="py-1.5 px-2 text-slate-300">{Math.abs(pt.lon).toFixed(3)}Â°W</td>
-                          <td className="py-1.5 px-2 text-emerald-400">{pt.speed_kts || currentBerg.drift_speed_kts} kts</td>
-                          <td className="py-1.5 px-2 text-slate-300">{pt.heading_deg || currentBerg.drift_heading_deg}Â°</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {/* Tab 3: Monte Carlo Dispersion Ensembles */}
-            {activeTab === 'monte_carlo' && (
-              <div className="bg-polar-850 border border-polar-700 rounded-xl p-4 shadow-xl space-y-3">
-                <h4 className="text-xs font-bold text-slate-200 border-b border-polar-700 pb-2">
-                  STOCHASTIC ENSEMBLE UNCERTAINTY CONE RADII
-                </h4>
-
-                <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                  <div className="bg-polar-900 p-3 rounded-lg border border-polar-700">
-                    <span className="text-slate-400 text-[10px] block">24-HOUR RADIUS</span>
-                    <span className="text-sky-300 font-bold text-lg">
-                      {currentBerg.uncertainty_radii_nm?.['24h_nm'] || 8.5} NM
-                    </span>
-                    <span className="text-[9px] text-slate-500 block">95% Conf. Ellipse</span>
-                  </div>
-
-                  <div className="bg-polar-900 p-3 rounded-lg border border-polar-700">
-                    <span className="text-slate-400 text-[10px] block">48-HOUR RADIUS</span>
-                    <span className="text-amber-300 font-bold text-lg">
-                      {currentBerg.uncertainty_radii_nm?.['48h_nm'] || 16.2} NM
-                    </span>
-                    <span className="text-[9px] text-slate-500 block">95% Conf. Ellipse</span>
-                  </div>
-
-                  <div className="bg-polar-900 p-3 rounded-lg border border-polar-700">
-                    <span className="text-slate-400 text-[10px] block">72-HOUR RADIUS</span>
-                    <span className="text-red-400 font-bold text-lg">
-                      {currentBerg.uncertainty_radii_nm?.['72h_nm'] || 24.8} NM
-                    </span>
-                    <span className="text-[9px] text-slate-500 block">95% Conf. Ellipse</span>
-                  </div>
-                </div>
-
-                <div className="bg-polar-950 p-3 rounded border border-polar-800 text-xs text-slate-300">
-                  <strong className="text-amber-400">Navigation Advisory:</strong> Avoid vessel tracks crossing within the 72-hour uncertainty envelope of <strong>{currentBerg.name}</strong> due to turbulent wake shedding of growlers and sudden capsizing waves.
-                </div>
-              </div>
-            )}
+          <div className="bg-polar-900 p-2.5 rounded border border-polar-700">
+            <span className="text-slate-400 text-[10px] block">DIMENSIONS / AREA</span>
+            <span className="text-white font-bold">{currentBerg.length_km} x {currentBerg.width_km} km ({currentBerg.area_sq_km} km²)</span>
+          </div>
+          <div className="bg-polar-900 p-2.5 rounded border border-polar-700">
+            <span className="text-slate-400 text-[10px] block">FREEBOARD / DRAFT</span>
+            <span className="text-white font-bold">{currentBerg.freeboard_m}m / {currentBerg.draft_m}m</span>
+          </div>
+          <div className="bg-polar-900 p-2.5 rounded border border-polar-700">
+            <span className="text-slate-400 text-[10px] block">ESTIMATED MASS</span>
+            <span className="text-white font-bold">{currentBerg.estimated_mass_gigatons} Gt</span>
           </div>
         </div>
+
+        {/* Hydrodynamic Force Vectors */}
+        <div className="bg-polar-850 border border-polar-700 rounded-lg p-4 space-y-3">
+          <span className="font-bold text-xs text-sky-400 block border-b border-polar-700 pb-1">
+            HYDRODYNAMIC FORCE BALANCE & CORIOLIS EQUATIONS
+          </span>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+            <div className="bg-polar-900 p-3 rounded border border-polar-700 space-y-1">
+              <span className="font-bold text-slate-200 block">1. ATMOSPHERIC FORM DRAG (Fa)</span>
+              <p className="text-[11px] text-slate-400">
+                Wind force acting on freeboard sail area: Fa = 0.5 * rho_a * Ca * Aa * |Va - Vi|(Va - Vi)
+              </p>
+              <span className="text-teal-400 font-bold text-xs">Influence: {drift.wind_influence_pct}%</span>
+            </div>
+
+            <div className="bg-polar-900 p-3 rounded border border-polar-700 space-y-1">
+              <span className="font-bold text-slate-200 block">2. OCEAN CURRENT KEEL DRAG (Fw)</span>
+              <p className="text-[11px] text-slate-400">
+                Antarctic Circumpolar Current & Ekman shear drag acting on submerged keel (250m draft).
+              </p>
+              <span className="text-sky-400 font-bold text-xs">Influence: {drift.current_influence_pct}%</span>
+            </div>
+
+            <div className="bg-polar-900 p-3 rounded border border-polar-700 space-y-1">
+              <span className="font-bold text-slate-200 block">3. CORIOLIS DEFLECTION (Fc)</span>
+              <p className="text-[11px] text-slate-400">
+                Southern Hemisphere deflection to left of motion vector: Fc = -m * 2 * Omega * sin(phi) * k x Vi
+              </p>
+              <span className="text-amber-400 font-bold text-xs">Coriolis Deflection: -1.32e-4 s?¹</span>
+            </div>
+          </div>
+        </div>
+
+        {/* 72-Hour Monte Carlo Dispersion Cone */}
+        {currentBerg.uncertainty_radii_nm && (
+          <div className="bg-polar-850 border border-polar-700 rounded-lg p-3 space-y-2">
+            <span className="font-bold text-xs text-amber-400 block border-b border-polar-700 pb-1">
+              72-HOUR STOCHASTIC ENSEMBLE UNCERTAINTY RADII
+            </span>
+            <div className="grid grid-cols-3 gap-3 text-center text-xs">
+              <div className="bg-polar-900 p-2 rounded border border-polar-700">
+                <span className="text-slate-400 text-[10px] block">+24 HOURS UNCERTAINTY</span>
+                <span className="text-white font-bold">±{currentBerg.uncertainty_radii_nm['24h_nm']} NM</span>
+              </div>
+              <div className="bg-polar-900 p-2 rounded border border-polar-700">
+                <span className="text-slate-400 text-[10px] block">+48 HOURS UNCERTAINTY</span>
+                <span className="text-white font-bold">±{currentBerg.uncertainty_radii_nm['48h_nm']} NM</span>
+              </div>
+              <div className="bg-polar-900 p-2 rounded border border-polar-700">
+                <span className="text-slate-400 text-[10px] block">+72 HOURS UNCERTAINTY</span>
+                <span className="text-white font-bold">±{currentBerg.uncertainty_radii_nm['72h_nm']} NM</span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

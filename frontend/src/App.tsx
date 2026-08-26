@@ -122,12 +122,31 @@ export const App: React.FC = () => {
   const [stormActive, setStormActive] = useState<boolean>(false);
   const [ridgeActive, setRidgeActive] = useState<boolean>(false);
 
-  // Initialize Sound
+  // Global ESC Key Listener to Close Any Open Tab/Modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (isSafeHavenOpen) setIsSafeHavenOpen(false);
+        else if (isRoutePlannerOpen) setIsRoutePlannerOpen(false);
+        else if (isLogbookOpen) setIsLogbookOpen(false);
+        else if (isAlarmsOpen) setIsAlarmsOpen(false);
+        else if (isDepthSounderOpen) setIsDepthSounderOpen(false);
+        else if (isHelmOpen) setIsHelmOpen(false);
+        else if (isLoginOpen) setIsLoginOpen(false);
+        else if (activeTab !== 'map') {
+          setActiveTab('map');
+          bridgeAudio.playTacticalClick();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isSafeHavenOpen, isRoutePlannerOpen, isLogbookOpen, isAlarmsOpen, isDepthSounderOpen, isHelmOpen, isLoginOpen, activeTab]);
+
   useEffect(() => {
     bridgeAudio.enableSound(soundEnabled);
   }, [soundEnabled]);
 
-  // Initial Data Fetching
   useEffect(() => {
     const initData = async () => {
       const stData = await polarApi.getStations();
@@ -165,7 +184,6 @@ export const App: React.FC = () => {
         let currentSpd = prev.speed_kts;
         let currentWptIdx = prev.current_waypoint_index || 0;
 
-        // Mode 1: Auto Waypoint Tracking
         if (helm.mode === 'AUTO_WAYPOINT' && activeRoute && activeRoute.waypoints.length > 0) {
           const targetWpt = activeRoute.waypoints[currentWptIdx] || activeRoute.waypoints[activeRoute.waypoints.length - 1];
           const dLat = (targetWpt.lat - prev.lat) * 60;
@@ -191,9 +209,7 @@ export const App: React.FC = () => {
           if (stormActive) baseSpd = 5.0;
           if (ridgeActive) baseSpd = 3.2;
           currentSpd = Number(baseSpd.toFixed(1));
-        } 
-        // Mode 2: Manual Helm Conning
-        else {
+        } else {
           const turnRate = (helm.rudder_deg / 35.0) * 2.5 * playbackSpeed;
           currentHdg += turnRate;
           if (currentHdg < 0) currentHdg += 360;
@@ -257,7 +273,7 @@ export const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [isPlaying, playbackSpeed, helm.mode, helm.rudder_deg, helm.throttle_pct, activeRoute, stormActive, ridgeActive, fleetProfile]);
 
-  // Compute CPA Collision Warning to A-23a & Trigger Alarms
+  // Compute CPA Collision Warning
   useEffect(() => {
     if (icebergs.length > 0) {
       const a23a = icebergs.find((b) => b.id === 'A-23a') || icebergs[0];
@@ -434,16 +450,16 @@ export const App: React.FC = () => {
 
       {/* Storm Scenario Banner */}
       {stormActive && (
-        <div className="bg-red-950/90 border-b border-red-600 px-4 py-1.5 flex items-center justify-between text-xs font-mono text-red-200 animate-pulse z-40">
-          <span>?? SEVERE METOCEAN EVENT: Katabatic Blizzard (Force 10 Gale) - Speed capped to 5.5 kts</span>
+        <div className="bg-red-950/90 border-b border-red-600 px-4 py-1 flex items-center justify-between text-xs font-mono text-red-200 animate-pulse z-40">
+          <span>⚠️ SEVERE METOCEAN EVENT: Katabatic Blizzard (Force 10 Gale) - Speed capped to 5.5 kts</span>
           <span className="font-bold">HULL RIO MARGIN MONITORED</span>
         </div>
       )}
 
       {/* Ridge Scenario Banner */}
       {ridgeActive && (
-        <div className="bg-purple-950/90 border-b border-purple-600 px-4 py-1.5 flex items-center justify-between text-xs font-mono text-purple-200 animate-pulse z-40">
-          <span>? ICE PRESSURE WARNING: Heavy Multi-Year Ridge - Increased Ice Resistance (+650 kN)</span>
+        <div className="bg-purple-950/90 border-b border-purple-600 px-4 py-1 flex items-center justify-between text-xs font-mono text-purple-200 animate-pulse z-40">
+          <span>⚡ ICE PRESSURE WARNING: Heavy Multi-Year Ridge - Increased Ice Resistance (+650 kN)</span>
           <span className="font-bold">RAMMING PROTOCOL ACTIVE</span>
         </div>
       )}
@@ -477,26 +493,37 @@ export const App: React.FC = () => {
               setSelectedIceberg(berg);
               setActiveTab('icebergs');
             }}
+            onClose={() => setActiveTab('map')}
           />
         )}
 
-        {activeTab === 'polaris' && <PolarisRiskPanel />}
+        {activeTab === 'polaris' && (
+          <PolarisRiskPanel onClose={() => setActiveTab('map')} />
+        )}
 
         {activeTab === 'icebergs' && (
           <IcebergTrajectoryViewer
             icebergs={icebergs}
             selectedIceberg={selectedIceberg}
             onSelectIceberg={setSelectedIceberg}
+            onClose={() => setActiveTab('map')}
           />
         )}
 
-        {activeTab === 'sar' && <SARVisionWorkbench />}
+        {activeTab === 'sar' && (
+          <SARVisionWorkbench onClose={() => setActiveTab('map')} />
+        )}
 
-        {activeTab === 'copilot' && <AICopilotDrawer vessel={vessel} />}
+        {activeTab === 'copilot' && (
+          <AICopilotDrawer
+            vessel={vessel}
+            onClose={() => setActiveTab('map')}
+          />
+        )}
 
         {/* Floating Conning Controls Drawer */}
         {isHelmOpen && (
-          <div className="absolute bottom-4 left-4 z-40 max-w-2xl w-full">
+          <div className="absolute bottom-3 left-3 z-40 max-w-xl w-full">
             <ConningHelmControls
               vessel={vessel}
               helm={helm}
@@ -506,13 +533,14 @@ export const App: React.FC = () => {
                 setHelm(prev => ({ ...prev, throttle_pct: -50, rudder_deg: 0 }));
                 setVessel(prev => ({ ...prev, speed_kts: 0, status: 'CRASH STOP INITIATED' }));
               }}
+              onClose={() => setIsHelmOpen(false)}
             />
           </div>
         )}
 
         {/* Floating Depth Sounder Drawer */}
         {isDepthSounderOpen && (
-          <div className="absolute top-4 left-4 z-40 max-w-lg w-full">
+          <div className="absolute top-3 left-3 z-40 max-w-md w-full">
             <DepthSounderHUD
               vessel={vessel}
               onClose={() => setIsDepthSounderOpen(false)}

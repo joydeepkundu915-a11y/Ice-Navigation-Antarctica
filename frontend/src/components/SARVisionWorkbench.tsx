@@ -8,12 +8,18 @@ import {
   ShieldCheck, 
   Crosshair,
   Maximize2,
-  Sparkles
+  Sparkles,
+  X
 } from 'lucide-react';
 import { SARScene, SARDetection } from '../types';
 import { polarApi } from '../services/api';
+import { bridgeAudio } from '../services/audioAlerts';
 
-export const SARVisionWorkbench: React.FC = () => {
+interface SARVisionWorkbenchProps {
+  onClose?: () => void;
+}
+
+export const SARVisionWorkbench: React.FC<SARVisionWorkbenchProps> = ({ onClose }) => {
   const [presets, setPresets] = useState<SARScene[]>([]);
   const [selectedSceneId, setSelectedSceneId] = useState<string>('SAR-SENTINEL1-WEDDELL-A23A');
   const [analysis, setAnalysis] = useState<any | null>(null);
@@ -47,197 +53,143 @@ export const SARVisionWorkbench: React.FC = () => {
   }, [selectedSceneId]);
 
   return (
-    <div className="w-full h-full bg-polar-900 p-4 overflow-y-auto font-mono select-none">
-      <div className="max-w-6xl mx-auto space-y-4">
-        {/* Header Title */}
-        <div className="bg-polar-850 border border-polar-700 rounded-xl p-4 shadow-xl flex items-center justify-between">
+    <div className="w-full h-full bg-polar-900 p-3 overflow-y-auto font-mono select-none">
+      <div className="max-w-6xl mx-auto space-y-3">
+        {/* Header with Close */}
+        <div className="bg-polar-850 border border-polar-700 rounded-lg p-3 shadow-xl flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="p-2.5 rounded-lg bg-sky-950 border border-sky-600 text-sky-400">
-              <Eye className="w-6 h-6" />
+            <div className="p-2 rounded-lg bg-sky-950 border border-sky-600 text-sky-400">
+              <Eye className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-100 flex items-center space-x-2">
+              <h2 className="text-sm font-bold text-slate-100 flex items-center space-x-2">
                 <span>SAR SATELLITE ICE VISION & LEAD DETECTOR</span>
-                <span className="px-2 py-0.5 rounded text-[10px] bg-sky-950 text-sky-300 border border-sky-700">
-                  SENTINEL-1 C-BAND SAR
+                <span className="px-1.5 py-0.2 rounded text-[10px] bg-sky-950 text-sky-300 border border-sky-700">
+                  SENTINEL-1 C-BAND
                 </span>
               </h2>
-              <p className="text-xs text-slate-400">
-                Automated Open Water Lead Segmentation, Iceberg Radar Targets & Pressure Ridge Detection
+              <p className="text-[10px] text-slate-400">
+                Synthetic Aperture Radar (SAR) Deep Learning Segmentation for Navigable Ice Leads
               </p>
             </div>
           </div>
+
+          <div className="flex items-center space-x-2">
+            {onClose && (
+              <button
+                onClick={() => {
+                  onClose();
+                  bridgeAudio.playTacticalClick();
+                }}
+                className="bg-polar-800 hover:bg-polar-700 text-slate-300 hover:text-white px-2.5 py-1 rounded border border-polar-600 text-xs flex items-center space-x-1"
+                title="Return to ECDIS Map (ESC)"
+              >
+                <X className="w-3.5 h-3.5 text-red-400" />
+                <span>CLOSE [ESC]</span>
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* Scene Selection Bar */}
+        {/* Scene Selector */}
         <div className="flex items-center space-x-2 overflow-x-auto pb-1">
-          {presets.map((scene) => {
-            const isSelected = scene.id === selectedSceneId;
+          {presets.map((s) => {
+            const isSel = s.id === selectedSceneId;
             return (
               <button
-                key={scene.id}
-                onClick={() => setSelectedSceneId(scene.id)}
-                className={`px-3 py-2 rounded-lg border text-xs whitespace-nowrap transition-all flex items-center space-x-2 ${
-                  isSelected
-                    ? 'bg-sky-950 border-sky-400 text-white shadow-lg'
-                    : 'bg-polar-850 border-polar-700 text-slate-400 hover:text-slate-200'
-                }`}
+                key={s.id}
+                onClick={() => {
+                  setSelectedSceneId(s.id);
+                  bridgeAudio.playTacticalClick();
+                }}
+                className={'px-3 py-1.5 rounded-lg border text-xs font-bold whitespace-nowrap transition ' + (
+                  isSel
+                    ? 'bg-sky-950 border-sky-400 text-white shadow-md'
+                    : 'bg-polar-850 border-polar-700 text-slate-400 hover:bg-polar-800'
+                )}
               >
-                <Eye className="w-3.5 h-3.5 text-sky-400" />
-                <span className="font-bold">{scene.title.split(':')[0]}</span>
+                <span>{s.title}</span>
               </button>
             );
           })}
         </div>
 
-        {/* Main SAR Imagery & AI Feature Grid */}
+        {/* Main Analysis Display */}
         {analysis && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-            {/* Left Column: Satellite Imagery Viewer with Overlays (7 cols) */}
-            <div className="lg:col-span-7 bg-polar-850 border border-polar-700 rounded-xl p-4 shadow-xl space-y-3 flex flex-col">
-              <div className="flex items-center justify-between border-b border-polar-700 pb-2 text-xs">
-                <span className="font-bold text-slate-200 truncate max-w-md">{analysis.title}</span>
-                <label className="flex items-center space-x-2 text-sky-300 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={showOverlays}
-                    onChange={(e) => setShowOverlays(e.target.checked)}
-                    className="rounded bg-polar-900 border-polar-600 text-sky-500"
-                  />
-                  <span>AI Detections Overlay</span>
-                </label>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
+            {/* Left: Synthetic Radar Image / Canvas */}
+            <div className="lg:col-span-8 bg-polar-850 border border-polar-700 rounded-lg p-3 space-y-2">
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-slate-300 font-bold">RADAR SCENE: {analysis.title}</span>
+                <button
+                  onClick={() => setShowOverlays(!showOverlays)}
+                  className={'px-2 py-0.5 rounded text-[10px] border ' + (showOverlays ? 'bg-sky-600 text-white' : 'bg-polar-900 text-slate-400')}
+                >
+                  {showOverlays ? 'AI OVERLAYS ON' : 'RAW SAR ONLY'}
+                </button>
               </div>
 
-              {/* Simulated SAR Image Canvas View */}
-              <div className="relative w-full h-80 rounded-lg overflow-hidden border border-polar-700 bg-black flex items-center justify-center">
-                <img
-                  src={analysis.image_url}
-                  alt={analysis.title}
-                  className="w-full h-full object-cover filter contrast-125 grayscale brightness-90"
-                />
+              <div className="relative rounded-lg overflow-hidden border border-polar-700 bg-polar-950 aspect-video flex items-center justify-center">
+                <div className="w-full h-full bg-gradient-to-tr from-slate-950 via-slate-900 to-sky-950 p-6 flex flex-col justify-between relative">
+                  <div className="absolute inset-0 bg-[radial-gradient(#38bdf8_1px,transparent_1px)] [background-size:16px_16px] opacity-15" />
+                  
+                  {/* Lead Corridor */}
+                  <div className="absolute top-1/4 left-0 right-1/3 h-12 bg-sky-500/20 border-y border-sky-400/50 transform -rotate-6 flex items-center px-4">
+                    <span className="text-[10px] text-sky-300 font-bold">DETECTED THERMAL LEAD (OPEN CHANNEL)</span>
+                  </div>
 
-                {/* AI Feature Bounding Boxes */}
-                {showOverlays && analysis.detections?.map((det: SARDetection, idx: number) => {
-                  const isSelected = selectedDetection?.label === det.label;
-                  const isLead = det.type.includes('LEAD') || det.type.includes('POLYNYA') || det.type.includes('CHANNEL');
-                  const boxColor = isLead ? '#10b981' : det.danger_level === 'EXTREME' ? '#ef4444' : '#f59e0b';
+                  {/* Mega Iceberg polygon */}
+                  <div className="absolute bottom-6 right-8 w-44 h-28 bg-amber-500/25 border-2 border-amber-400 rounded-sm flex items-center justify-center p-2 text-center">
+                    <span className="text-[10px] text-amber-300 font-bold">A-23A TABULAR ICEBERG TARGET</span>
+                  </div>
 
-                  // Map 1000x650 coordinate space to percentage
-                  const leftPct = (det.bbox.x / 1000) * 100;
-                  const topPct = (det.bbox.y / 650) * 100;
-                  const widthPct = (det.bbox.width / 1000) * 100;
-                  const heightPct = (det.bbox.height / 650) * 100;
+                  <div className="relative z-10 flex justify-between text-[10px] text-slate-400">
+                    <span>POLARIZATION: HH + HV</span>
+                    <span>SWATH: 400 KM</span>
+                  </div>
 
-                  return (
-                    <div
-                      key={idx}
-                      onClick={() => setSelectedDetection(det)}
-                      style={{
-                        left: `${leftPct}%`,
-                        top: `${topPct}%`,
-                        width: `${widthPct}%`,
-                        height: `${heightPct}%`,
-                        borderColor: boxColor,
-                        backgroundColor: isLead ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)'
-                      }}
-                      className={`absolute border-2 rounded cursor-pointer transition-all ${
-                        isSelected ? 'ring-2 ring-white scale-105 z-20' : 'hover:opacity-100 z-10'
-                      }`}
-                    >
-                      <span 
-                        style={{ backgroundColor: boxColor }}
-                        className="absolute -top-5 left-0 px-1 py-0.5 rounded text-[9px] font-bold text-black whitespace-nowrap shadow"
-                      >
-                        {det.label} ({(det.confidence * 100).toFixed(0)}%)
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Scene Metadata Bar */}
-              <div className="grid grid-cols-3 gap-2 text-[10px] text-slate-400 bg-polar-900 p-2 rounded border border-polar-700">
-                <div>Satellite: <strong className="text-slate-200">{analysis.satellite}</strong></div>
-                <div>Acquisition: <strong className="text-slate-200">{analysis.acquisition_date.slice(0, 10)}</strong></div>
-                <div>Resolution: <strong className="text-sky-300">{analysis.resolution_m} m/pixel</strong></div>
+                  <div className="relative z-10 text-[10px] text-slate-400">
+                    <span>SENTINEL-1 IW SAR ACQUISITION</span>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Right Column: AI Detection Breakdown & Conning Advice (5 cols) */}
-            <div className="lg:col-span-5 space-y-4">
-              {/* Navigability Score Card */}
-              <div className="bg-polar-850 border border-polar-700 rounded-xl p-4 shadow-xl text-center space-y-2">
-                <span className="text-[10px] text-slate-400 font-bold tracking-wider">
-                  ICE FIELD NAVIGABILITY RATING
-                </span>
-
-                <div className="text-3xl font-extrabold text-sky-400">
-                  {analysis.navigability_score} / 100
-                </div>
-
-                <div className="inline-block px-2.5 py-0.5 rounded text-xs font-bold bg-sky-950 text-sky-300 border border-sky-600">
-                  {analysis.navigability_rating} PASSAGE
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 text-left pt-2 border-t border-polar-700 text-xs">
-                  <div className="bg-polar-900 p-2 rounded border border-polar-700">
-                    <span className="text-slate-500 text-[9px] block">DETECTED LEADS</span>
-                    <span className="text-emerald-400 font-bold">{analysis.feature_counts?.leads_polynyas || 0} Open Polynyas</span>
-                  </div>
-                  <div className="bg-polar-900 p-2 rounded border border-polar-700">
-                    <span className="text-slate-500 text-[9px] block">HAZARDS / BERGS</span>
-                    <span className="text-amber-400 font-bold">{analysis.feature_counts?.icebergs + analysis.feature_counts?.growlers || 0} Targets</span>
-                  </div>
-                </div>
+            {/* Right: AI Detections & Conning Advisories */}
+            <div className="lg:col-span-4 bg-polar-850 border border-polar-700 rounded-lg p-3 space-y-3">
+              <div className="flex justify-between items-center border-b border-polar-700 pb-1.5">
+                <span className="font-bold text-xs text-slate-200">TACTICAL CONNING ADVISORY</span>
+                <span className="text-[10px] text-emerald-400 font-mono">CONFIDENCE: {analysis.confidence_pct}%</span>
               </div>
 
-              {/* Selected Feature Deep Inspection Card */}
-              {selectedDetection ? (
-                <div className="bg-polar-850 border border-sky-600/60 rounded-xl p-4 shadow-xl space-y-2 text-xs">
-                  <div className="flex items-center justify-between border-b border-polar-700 pb-2">
-                    <span className="font-bold text-sky-300">{selectedDetection.label}</span>
-                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
-                      selectedDetection.danger_level === 'EXTREME' ? 'bg-red-950 text-red-300 border border-red-700' : 'bg-emerald-950 text-emerald-300 border border-emerald-700'
-                    }`}>
-                      {selectedDetection.danger_level}
-                    </span>
-                  </div>
-
-                  <div className="space-y-1 text-slate-300">
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Classification Type:</span>
-                      <span className="font-semibold text-slate-200">{selectedDetection.type}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">AI Confidence:</span>
-                      <span className="font-semibold text-emerald-400">{(selectedDetection.confidence * 100).toFixed(1)}%</span>
-                    </div>
-                    {selectedDetection.width_m && (
-                      <div className="flex justify-between">
-                        <span className="text-slate-400">Channel Width:</span>
-                        <span className="font-semibold text-sky-300">{selectedDetection.width_m} m</span>
-                      </div>
-                    )}
-                    {selectedDetection.ice_concentration_pct !== undefined && (
-                      <div className="flex justify-between">
-                        <span className="text-slate-400">Channel Ice Concentration:</span>
-                        <span className="font-semibold text-sky-300">{selectedDetection.ice_concentration_pct}%</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="bg-polar-950 p-2.5 rounded border border-polar-800 space-y-1">
-                    <span className="text-amber-400 font-bold text-[10px] block">TACTICAL CONNING ADVICE:</span>
-                    <p className="text-slate-200 text-xs font-sans leading-relaxed">
-                      {selectedDetection.conning_advice}
-                    </p>
-                  </div>
+              <div className="bg-polar-900 p-3 rounded border border-polar-700 space-y-2">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-slate-400">NAVIGABILITY RATING:</span>
+                  <span className="text-emerald-400 font-bold">{analysis.navigability_score}/100</span>
                 </div>
-              ) : (
-                <div className="p-4 bg-polar-850 rounded-xl text-center text-xs text-slate-400 border border-polar-700">
-                  Select any bounding box to inspect AI ice classification.
+                <div className="w-full bg-polar-800 rounded-full h-2">
+                  <div className="bg-emerald-500 h-2 rounded-full" style={{ width: (analysis.navigability_score) + '%' }} />
                 </div>
-              )}
+                <p className="text-[11px] text-slate-300 italic pt-1">
+                  "{analysis.conning_recommendation}"
+                </p>
+              </div>
+
+              {/* Detections List */}
+              <div className="space-y-1.5">
+                <span className="text-[10px] text-slate-400 uppercase font-bold block">
+                  Identified Tactical Features:
+                </span>
+                {analysis.detections?.map((d: any, i: number) => (
+                  <div key={i} className="p-2 rounded bg-polar-900 border border-polar-700 text-[11px] space-y-0.5">
+                    <div className="flex justify-between text-sky-300 font-bold">
+                      <span>{d.label}</span>
+                      <span className="text-[10px] text-slate-400">{(d.confidence * 100).toFixed(0)}%</span>
+                    </div>
+                    <p className="text-[10px] text-slate-300">{d.conning_advice}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}
