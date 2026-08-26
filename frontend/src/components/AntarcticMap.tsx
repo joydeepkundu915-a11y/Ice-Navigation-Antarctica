@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle, Tooltip, Polygon } from 'react-leaflet';
 import L from 'leaflet';
 import { 
@@ -10,13 +10,13 @@ import {
   Eye, 
   Radio, 
   Thermometer, 
-  Wind,
-  ShieldAlert,
+  Wind, 
+  ShieldAlert, 
   Info,
-  Maximize2,
-  Minimize2
+  Ship,
+  AlertOctagon
 } from 'lucide-react';
-import { Station, Iceberg, RoutePlan, VesselState, DisplayPalette } from '../types';
+import { Station, Iceberg, RoutePlan, VesselState, DisplayPalette, AISVessel, DistressSOSState } from '../types';
 import { bridgeAudio } from '../services/audioAlerts';
 
 // Custom Leaflet DivIcons
@@ -36,6 +36,23 @@ const createVesselIcon = (heading: number, palette: DisplayPalette) => {
     `,
     iconSize: [34, 34],
     iconAnchor: [17, 17]
+  });
+};
+
+const createAISVesselIcon = (heading: number, isCritical: boolean) => {
+  const color = isCritical ? '#ef4444' : '#a855f7';
+  return L.divIcon({
+    className: 'ais-vessel-marker',
+    html: `
+      <div style="transform: rotate(${heading}deg); transition: transform 0.4s ease;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <polygon points="12,2 20,20 12,16 4,20" fill="${color}" stroke="#ffffff" stroke-width="1.5" />
+          <circle cx="12" cy="12" r="2.5" fill="#ffffff" />
+        </svg>
+      </div>
+    `,
+    iconSize: [24, 24],
+    iconAnchor: [12, 12]
   });
 };
 
@@ -72,8 +89,11 @@ interface AntarcticMapProps {
   iceGrid: any[];
   activeRoute: RoutePlan | null;
   palette?: DisplayPalette;
+  aisVessels?: AISVessel[];
+  sosState?: DistressSOSState;
   onSelectIceberg: (iceberg: Iceberg) => void;
   onSelectStation: (station: Station) => void;
+  onSelectAISVessel?: (vessel: AISVessel) => void;
 }
 
 export const AntarcticMap: React.FC<AntarcticMapProps> = ({
@@ -83,8 +103,11 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
   iceGrid,
   activeRoute,
   palette = 'dusk',
+  aisVessels = [],
+  sosState,
   onSelectIceberg,
-  onSelectStation
+  onSelectStation,
+  onSelectAISVessel
 }) => {
   const [showSIC, setShowSIC] = useState<boolean>(true);
   const [showIcebergs, setShowIcebergs] = useState<boolean>(true);
@@ -92,6 +115,7 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
   const [showTrajectoryCones, setShowTrajectoryCones] = useState<boolean>(true);
   const [showRoute, setShowRoute] = useState<boolean>(true);
   const [showWake, setShowWake] = useState<boolean>(true);
+  const [showAIS, setShowAIS] = useState<boolean>(true);
   const [mapCenter, setMapCenter] = useState<[number, number]>([-65.0, -60.0]);
 
   const tileUrl = palette === 'day'
@@ -111,9 +135,9 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
   return (
     <div className="relative w-full h-full bg-polar-900 overflow-hidden flex flex-col select-none">
       {/* Map Control Bar Overlay */}
-      <div className="absolute top-4 right-4 z-[1000] bg-polar-850/90 backdrop-blur-md p-3 rounded-lg border border-polar-700 shadow-2xl flex flex-col space-y-2 text-xs font-mono">
-        <div className="flex items-center space-x-2 text-slate-300 font-semibold border-b border-polar-700 pb-1.5">
-          <Layers className="w-4 h-4 text-sky-400" />
+      <div className="absolute top-3 right-3 z-[1000] bg-polar-850/90 backdrop-blur-md p-2.5 rounded-lg border border-polar-700 shadow-2xl flex flex-col space-y-1.5 text-[11px] font-mono">
+        <div className="flex items-center space-x-2 text-slate-300 font-bold border-b border-polar-700 pb-1">
+          <Layers className="w-3.5 h-3.5 text-sky-400" />
           <span>POLAR OVERLAYS</span>
         </div>
 
@@ -130,21 +154,21 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
         <label className="flex items-center space-x-2 text-slate-300 hover:text-white cursor-pointer">
           <input
             type="checkbox"
-            checked={showIcebergs}
-            onChange={(e) => setShowIcebergs(e.target.checked)}
-            className="rounded bg-polar-800 border-polar-600 text-sky-500 focus:ring-0"
+            checked={showAIS}
+            onChange={(e) => setShowAIS(e.target.checked)}
+            className="rounded bg-polar-800 border-polar-600 text-purple-500 focus:ring-0"
           />
-          <span>Drifting Icebergs (A-23a...)</span>
+          <span>AIS Vessel Traffic ({aisVessels.length})</span>
         </label>
 
         <label className="flex items-center space-x-2 text-slate-300 hover:text-white cursor-pointer">
           <input
             type="checkbox"
-            checked={showTrajectoryCones}
-            onChange={(e) => setShowTrajectoryCones(e.target.checked)}
+            checked={showIcebergs}
+            onChange={(e) => setShowIcebergs(e.target.checked)}
             className="rounded bg-polar-800 border-polar-600 text-sky-500 focus:ring-0"
           />
-          <span>72h Monte Carlo Cones</span>
+          <span>Icebergs & Drift Cones</span>
         </label>
 
         <label className="flex items-center space-x-2 text-slate-300 hover:text-white cursor-pointer">
@@ -154,17 +178,7 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
             onChange={(e) => setShowRoute(e.target.checked)}
             className="rounded bg-polar-800 border-polar-600 text-sky-500 focus:ring-0"
           />
-          <span>Active POLARIS Route</span>
-        </label>
-
-        <label className="flex items-center space-x-2 text-slate-300 hover:text-white cursor-pointer">
-          <input
-            type="checkbox"
-            checked={showWake}
-            onChange={(e) => setShowWake(e.target.checked)}
-            className="rounded bg-polar-800 border-polar-600 text-sky-500 focus:ring-0"
-          />
-          <span>Vessel Dynamic Wake</span>
+          <span>POLARIS Route & Leads</span>
         </label>
 
         <label className="flex items-center space-x-2 text-slate-300 hover:text-white cursor-pointer">
@@ -174,28 +188,28 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
             onChange={(e) => setShowStations(e.target.checked)}
             className="rounded bg-polar-800 border-polar-600 text-sky-500 focus:ring-0"
           />
-          <span>Research Stations / Shelters</span>
+          <span>Antarctic Stations / Shelters</span>
         </label>
       </div>
 
       {/* Map Legend */}
-      <div className="absolute bottom-6 left-4 z-[1000] bg-polar-850/90 backdrop-blur-md p-3 rounded-lg border border-polar-700 shadow-2xl text-[11px] font-mono flex flex-col space-y-1.5 pointer-events-auto">
-        <span className="text-slate-400 font-bold border-b border-polar-700 pb-1">SEA-ICE CONCENTRATION (SIC)</span>
-        <div className="flex items-center space-x-2">
-          <span className="w-3.5 h-3.5 rounded-sm bg-[#00f2fe]/40 border border-[#00f2fe]" />
+      <div className="absolute bottom-4 left-3 z-[1000] bg-polar-850/90 backdrop-blur-md p-2 rounded-lg border border-polar-700 shadow-2xl text-[10px] font-mono flex flex-col space-y-1 pointer-events-auto">
+        <span className="text-slate-400 font-bold border-b border-polar-700 pb-0.5">ICE CONCENTRATION (SIC)</span>
+        <div className="flex items-center space-x-1.5">
+          <span className="w-3 h-3 rounded-sm bg-[#00f2fe]/40 border border-[#00f2fe]" />
           <span className="text-slate-300">Open Water / Leads (&lt;15%)</span>
         </div>
-        <div className="flex items-center space-x-2">
-          <span className="w-3.5 h-3.5 rounded-sm bg-[#38bdf8]/40 border border-[#38bdf8]" />
+        <div className="flex items-center space-x-1.5">
+          <span className="w-3 h-3 rounded-sm bg-[#38bdf8]/40 border border-[#38bdf8]" />
           <span className="text-slate-300">Open Pack (15% - 60%)</span>
         </div>
-        <div className="flex items-center space-x-2">
-          <span className="w-3.5 h-3.5 rounded-sm bg-[#818cf8]/40 border border-[#818cf8]" />
+        <div className="flex items-center space-x-1.5">
+          <span className="w-3 h-3 rounded-sm bg-[#818cf8]/40 border border-[#818cf8]" />
           <span className="text-slate-300">Close Pack (60% - 85%)</span>
         </div>
-        <div className="flex items-center space-x-2">
-          <span className="w-3.5 h-3.5 rounded-sm bg-[#f43f5e]/40 border border-[#f43f5e]" />
-          <span className="text-slate-300">Consolidated Heavy Fast Ice (&gt;85%)</span>
+        <div className="flex items-center space-x-1.5">
+          <span className="w-3 h-3 rounded-sm bg-[#f43f5e]/40 border border-[#f43f5e]" />
+          <span className="text-slate-300">Fast Heavy Ice (&gt;85%)</span>
         </div>
       </div>
 
@@ -209,7 +223,7 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
       >
         <TileLayer url={tileUrl} />
 
-        {/* 1. Sea Ice Concentration Overlay */}
+        {/* 1. Sea Ice Concentration Circles */}
         {showSIC && iceGrid && iceGrid.map((pt, idx) => {
           const conc = pt.sea_ice_concentration_pct;
           if (conc <= 5) return null;
@@ -237,7 +251,7 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
                   <p className="font-bold text-sky-400">ICE REGIME</p>
                   <p>Conc: {conc}% ({pt.ice_stage})</p>
                   <p>Thick: {pt.sea_ice_thickness_m}m</p>
-                  <p>Drift: {pt.ice_drift_speed_kts} kts @ {pt.ice_drift_heading_deg}�</p>
+                  <p>Drift: {pt.ice_drift_speed_kts} kts @ {pt.ice_drift_heading_deg}°</p>
                 </div>
               </Tooltip>
             </Circle>
@@ -321,13 +335,78 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
               <span className="font-bold text-sky-400 block">{vessel.name}</span>
               <span className="block text-slate-300">Class: {vessel.polar_class}</span>
               <span className="block text-slate-300">Speed: {vessel.speed_kts.toFixed(1)} kts</span>
-              <span className="block text-slate-300">Heading: {vessel.heading_deg.toFixed(0)}�</span>
+              <span className="block text-slate-300">Heading: {vessel.heading_deg.toFixed(0)}°</span>
               <span className="block text-slate-300">Status: {vessel.status}</span>
             </div>
           </Popup>
         </Marker>
 
-        {/* 6. Drifting Icebergs */}
+        {/* 6. SOS Distress Beacon Pulse on Own Ship */}
+        {sosState && sosState.active && (
+          <Circle
+            center={[vessel.lat, vessel.lon]}
+            radius={25000}
+            pathOptions={{
+              color: '#ef4444',
+              fillColor: '#ef4444',
+              fillOpacity: 0.25,
+              weight: 2.5,
+              dashArray: '4, 4'
+            }}
+          >
+            <Tooltip permanent>
+              <div className="bg-red-950 text-white font-bold px-2 py-0.5 rounded border border-red-500 text-xs animate-bounce">
+                🚨 MAYDAY DISTRESS ACTIVE (POB: {sosState.souls_on_board})
+              </div>
+            </Tooltip>
+          </Circle>
+        )}
+
+        {/* 7. AIS Target Vessels & Heading Vectors */}
+        {showAIS && aisVessels.map((tgt) => {
+          const isCrit = (tgt.dcpa_nm || 99) < 2.0 && (tgt.tcpa_min || 99) < 20;
+
+          // Target lookahead
+          const tgtLookLat = tgt.lat + (3.0 / 60.0) * Math.cos((tgt.heading_deg * Math.PI) / 180);
+          const tgtLookLon = tgt.lon + (3.0 / (60.0 * Math.cos((tgt.lat * Math.PI) / 180))) * Math.sin((tgt.heading_deg * Math.PI) / 180);
+
+          return (
+            <React.Fragment key={tgt.id}>
+              <Polyline
+                positions={[
+                  [tgt.lat, tgt.lon],
+                  [tgtLookLat, tgtLookLon]
+                ]}
+                pathOptions={{
+                  color: isCrit ? '#ef4444' : '#a855f7',
+                  weight: 1.5,
+                  dashArray: '2, 3'
+                }}
+              />
+
+              <Marker
+                position={[tgt.lat, tgt.lon]}
+                icon={createAISVesselIcon(tgt.heading_deg, isCrit)}
+                eventHandlers={{
+                  click: () => onSelectAISVessel && onSelectAISVessel(tgt)
+                }}
+              >
+                <Popup>
+                  <div className="text-xs font-mono space-y-1 p-1">
+                    <span className="font-bold text-purple-400 block">{tgt.name}</span>
+                    <span className="block text-slate-300">IMO: {tgt.imo} • Flag: {tgt.flag}</span>
+                    <span className="block text-slate-300">Class: {tgt.polar_class}</span>
+                    <span className="block text-slate-300">SOG: {tgt.speed_kts.toFixed(1)} kn @ {tgt.heading_deg.toFixed(0)}°</span>
+                    <span className="block text-slate-300">DCPA: {tgt.dcpa_nm?.toFixed(1)} NM • TCPA: {tgt.tcpa_min?.toFixed(0)}m</span>
+                    <span className="block text-emerald-400 font-bold">{tgt.status}</span>
+                  </div>
+                </Popup>
+              </Marker>
+            </React.Fragment>
+          );
+        })}
+
+        {/* 8. Drifting Icebergs */}
         {showIcebergs && icebergs && icebergs.map((berg) => {
           const isMega = berg.length_km > 30;
 
@@ -362,7 +441,7 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
                     >
                       <Tooltip>
                         <span className="text-xs font-mono">
-                          {berg.name} 72h Monte Carlo Envelope: �{berg.uncertainty_radii_nm['72h_nm']} NM
+                          {berg.name} 72h Envelope: ±{berg.uncertainty_radii_nm['72h_nm']} NM
                         </span>
                       </Tooltip>
                     </Circle>
@@ -382,7 +461,7 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
                     <span className="font-bold text-amber-400 block">{berg.name}</span>
                     <span className="block text-slate-300">Dimensions: {berg.length_km}km x {berg.width_km}km</span>
                     <span className="block text-slate-300">Draft: {berg.draft_m}m</span>
-                    <span className="block text-slate-300">Drift: {berg.drift_speed_kts} kts @ {berg.drift_heading_deg}�</span>
+                    <span className="block text-slate-300">Drift: {berg.drift_speed_kts} kts @ {berg.drift_heading_deg}°</span>
                     <span className="block text-red-400 font-semibold">Threat: {berg.threat_level}</span>
                   </div>
                 </Popup>
@@ -391,7 +470,7 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
           );
         })}
 
-        {/* 7. Research Stations */}
+        {/* 9. Research Stations */}
         {showStations && stations && stations.map((st) => (
           <Marker
             key={st.id}

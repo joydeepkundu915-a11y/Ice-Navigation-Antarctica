@@ -20,11 +20,15 @@ import {
   UserCheck, 
   LogOut, 
   Bell, 
-  Activity,
-  X,
-  Gauge
+  Activity, 
+  X, 
+  Gauge,
+  AlertOctagon,
+  Bot,
+  Ship,
+  Sparkles
 } from 'lucide-react';
-import { VesselState, CPAAlert, ShipUser, DisplayPalette, BridgeAlarm } from '../types';
+import { VesselState, CPAAlert, ShipUser, DisplayPalette, BridgeAlarm, AutoSailState, AISVessel } from '../types';
 import { bridgeAudio } from '../services/audioAlerts';
 
 interface BridgeHeaderProps {
@@ -44,6 +48,11 @@ interface BridgeHeaderProps {
   onOpenAlarms: () => void;
   onOpenDepthSounder: () => void;
   onOpenLogin: () => void;
+  onOpenSOS: () => void;
+  onOpenAIS: () => void;
+  autoSail: AutoSailState;
+  onToggleAutoSail: () => void;
+  aisVessels: AISVessel[];
 }
 
 export const BridgeHeader: React.FC<BridgeHeaderProps> = ({
@@ -62,7 +71,12 @@ export const BridgeHeader: React.FC<BridgeHeaderProps> = ({
   onOpenLogbook,
   onOpenAlarms,
   onOpenDepthSounder,
-  onOpenLogin
+  onOpenLogin,
+  onOpenSOS,
+  onOpenAIS,
+  autoSail,
+  onToggleAutoSail,
+  aisVessels
 }) => {
   const [utcTime, setUtcTime] = useState<string>('');
 
@@ -78,11 +92,12 @@ export const BridgeHeader: React.FC<BridgeHeaderProps> = ({
 
   const unacknowledgedAlarms = alarms.filter(a => !a.acknowledged);
   const hasCriticalAlarm = unacknowledgedAlarms.some(a => a.severity === 'CRITICAL');
+  const criticalAIS = aisVessels.filter(v => (v.dcpa_nm || 99) < 2.0 && (v.tcpa_min || 99) < 20);
 
   const handleTabClick = (tabKey: string) => {
     bridgeAudio.playTacticalClick();
     if (activeTab === tabKey && tabKey !== 'map') {
-      setActiveTab('map'); // Clicking active tab closes it and returns to map
+      setActiveTab('map');
     } else {
       setActiveTab(tabKey);
     }
@@ -99,12 +114,12 @@ export const BridgeHeader: React.FC<BridgeHeaderProps> = ({
 
   return (
     <header className="bg-polar-850/95 border-b border-polar-700/80 px-3 py-1.5 flex flex-wrap items-center justify-between shadow-2xl z-30 relative select-none text-xs font-mono">
-      {/* Left: Brand, Vessel & ENC Status */}
-      <div className="flex items-center space-x-2.5">
+      {/* Left: Brand, Vessel & Login Portal Button */}
+      <div className="flex items-center space-x-2">
         <div 
           onClick={onOpenLogin}
           className="cursor-pointer group flex items-center space-x-2 bg-polar-900/90 hover:bg-polar-800 p-1 pr-2.5 rounded border border-polar-700 hover:border-sky-500 transition-all shadow"
-          title="Click to Switch Vessel or Login Officer"
+          title="Click to Switch Vessel or Login Officer Credentials"
         >
           <div className="w-6 h-6 rounded bg-gradient-to-tr from-cyan-600 via-sky-500 to-blue-400 flex items-center justify-center text-white shadow">
             <Compass className="w-3.5 h-3.5 group-hover:rotate-45 transition-transform" />
@@ -119,7 +134,7 @@ export const BridgeHeader: React.FC<BridgeHeaderProps> = ({
               </span>
             </div>
             <p className="text-[9px] text-slate-300 flex items-center space-x-1">
-              <span className="font-bold text-sky-400 truncate max-w-[100px]">{vessel.name}</span>
+              <span className="font-bold text-sky-400 truncate max-w-[90px]">{vessel.name}</span>
               <span className="text-slate-600">•</span>
               <span className="text-slate-400">{vessel.polar_class}</span>
             </p>
@@ -127,58 +142,78 @@ export const BridgeHeader: React.FC<BridgeHeaderProps> = ({
         </div>
 
         {/* ENC Status Pill */}
-        <div className="hidden md:flex items-center space-x-1.5 bg-polar-900/70 px-2 py-1 rounded border border-polar-700/60 text-[10px]">
+        <div className="hidden md:flex items-center space-x-1 bg-polar-900/70 px-2 py-1 rounded border border-polar-700/60 text-[10px]">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
           <span className="text-slate-400">ENC:</span>
-          <span className="text-slate-200 font-bold">INT 9054 (WGS-84)</span>
+          <span className="text-slate-200 font-bold">INT 9054</span>
         </div>
 
-        {/* User Pill */}
-        {currentUser && (
-          <div 
-            onClick={onOpenLogin}
-            className="hidden lg:flex items-center space-x-1.5 bg-polar-900/70 hover:bg-polar-800 px-2 py-1 rounded border border-polar-700/60 text-[10px] cursor-pointer transition"
-          >
-            <UserCheck className="w-3 h-3 text-emerald-400" />
-            <span className="text-slate-300">{currentUser.full_name}</span>
-          </div>
-        )}
+        {/* User Login Pill */}
+        <button
+          onClick={onOpenLogin}
+          className="flex items-center space-x-1 bg-sky-950/80 hover:bg-sky-900 px-2 py-1 rounded border border-sky-600 text-[10px] text-sky-200 transition"
+          title="Login / Authenticate Bridge Watchkeeper"
+        >
+          <UserCheck className="w-3 h-3 text-sky-400" />
+          <span className="font-bold">{currentUser ? currentUser.full_name.split(' ')[1] || 'OFFICER' : 'LOGIN'}</span>
+        </button>
       </div>
 
-      {/* Center Tactical Telemetry Strip (High-Density & Realistic) */}
-      <div className="hidden xl:flex items-center space-x-2 text-[10px]">
-        <div className="bg-polar-900 px-2 py-1 rounded border border-polar-700 flex items-center space-x-1">
-          <Navigation className="w-3 h-3 text-sky-400" />
-          <span className="text-slate-400">POS:</span>
-          <span className="text-slate-200 font-bold">
-            {Math.abs(vessel.lat).toFixed(2)}°S, {Math.abs(vessel.lon).toFixed(2)}°W
-          </span>
-        </div>
+      {/* Center: Mission-Critical SOS, Auto-Sail, and AIS Action Bar */}
+      <div className="flex items-center space-x-2">
+        {/* Glowing Red GMDSS SOS Button */}
+        <button
+          onClick={() => {
+            onOpenSOS();
+            bridgeAudio.playTacticalClick();
+          }}
+          className="bg-gradient-to-r from-red-700 via-red-600 to-rose-600 hover:from-red-600 hover:to-rose-500 text-white font-extrabold px-3 py-1 rounded shadow-lg shadow-red-950 flex items-center space-x-1.5 text-xs animate-pulse border border-red-400"
+          title="GMDSS Mayday Polar Distress Transceiver"
+        >
+          <AlertOctagon className="w-3.5 h-3.5 text-white" />
+          <span>🚨 SOS DISTRESS</span>
+        </button>
 
-        <div className="bg-polar-900 px-2 py-1 rounded border border-polar-700 flex items-center space-x-1">
-          <Compass className="w-3 h-3 text-cyan-400" />
-          <span className="text-slate-400">HDG:</span>
-          <span className="text-slate-200 font-bold">{vessel.heading_deg.toFixed(0)}°</span>
-          <span className="text-slate-500">|</span>
-          <span className="text-slate-400">SOG:</span>
-          <span className="text-emerald-400 font-bold">{vessel.speed_kts.toFixed(1)} kn</span>
-        </div>
+        {/* Autonomous Auto-Sail Mode Toggle */}
+        <button
+          onClick={() => {
+            onToggleAutoSail();
+            bridgeAudio.playWarningChime();
+          }}
+          className={'px-2.5 py-1 rounded font-bold text-xs flex items-center space-x-1.5 border transition shadow ' + (
+            autoSail.enabled
+              ? 'bg-emerald-950 text-emerald-300 border-emerald-400 shadow-emerald-950'
+              : 'bg-polar-900 text-slate-400 border-polar-700 hover:text-white'
+          )}
+          title="Toggle Autonomous Polar Navigation (Auto-Avoidance & Lead Tracking)"
+        >
+          <Bot className={'w-3.5 h-3.5 ' + (autoSail.enabled ? 'text-emerald-400 animate-spin-slow' : 'text-slate-500')} />
+          <span>{autoSail.enabled ? '🤖 AUTO-SAIL ON' : 'AUTO-SAIL OFF'}</span>
+        </button>
 
-        <div className="bg-polar-900 px-2 py-1 rounded border border-polar-700 flex items-center space-x-1">
-          <Activity className="w-3 h-3 text-amber-400" />
-          <span className="text-slate-400">ICE LOAD:</span>
-          <span className="text-amber-300 font-bold">{vessel.ice_resistance_kn.toFixed(0)} kN</span>
-        </div>
-
-        <div className="bg-polar-900 px-2 py-1 rounded border border-polar-700 flex items-center space-x-1">
-          <Clock className="w-3 h-3 text-slate-400" />
-          <span className="text-sky-300 font-bold">{utcTime}</span>
-        </div>
+        {/* AIS Vessel Traffic & Collision Alert */}
+        <button
+          onClick={() => {
+            onOpenAIS();
+            bridgeAudio.playTacticalClick();
+          }}
+          className={'px-2 py-1 rounded font-bold text-[10px] flex items-center space-x-1 border transition ' + (
+            criticalAIS.length > 0
+              ? 'bg-red-950 border-red-500 text-red-200 animate-pulse'
+              : 'bg-purple-950/80 border-purple-700 text-purple-200 hover:bg-purple-900'
+          )}
+          title="AIS Multi-Vessel Traffic & COLREGs Anti-Collision Matrix"
+        >
+          <Ship className="w-3 h-3 text-purple-400" />
+          <span>AIS ({aisVessels.length})</span>
+          {criticalAIS.length > 0 && (
+            <span className="w-2 h-2 rounded-full bg-red-500" />
+          )}
+        </button>
       </div>
 
-      {/* Right Controls: Navigation Tabs & Tools with Cross option */}
+      {/* Right: Navigation Tabs, Palette & IAMS Tools */}
       <div className="flex items-center space-x-1.5">
-        {/* Navigation Tabs */}
         <nav className="flex items-center space-x-0.5 bg-polar-900 p-0.5 rounded border border-polar-700 text-[11px]">
           {navTabs.map((t) => {
             const isActive = activeTab === t.key;

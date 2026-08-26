@@ -4,9 +4,7 @@ class BridgeAudioSynthesizer {
   private ctx: AudioContext | null = null;
   private soundEnabled: boolean = false;
 
-  constructor() {
-    // AudioContext will be initialized on first user interaction
-  }
+  constructor() {}
 
   public enableSound(enabled: boolean) {
     this.soundEnabled = enabled;
@@ -36,7 +34,36 @@ class BridgeAudioSynthesizer {
     return this.ctx;
   }
 
-  // Critical Alarm: Two-tone urgent pulse (800Hz / 1000Hz)
+  // GMDSS / MAYDAY Distress Siren: Alternating 2200Hz / 1300Hz two-tone maritime alarm
+  public playMaydayDistressAlert() {
+    const ctx = this.getContext();
+    if (!ctx) return;
+
+    try {
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(2200, now);
+      osc.frequency.setValueAtTime(1300, now + 0.25);
+      osc.frequency.setValueAtTime(2200, now + 0.5);
+      osc.frequency.setValueAtTime(1300, now + 0.75);
+
+      gain.gain.setValueAtTime(0.35, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 1.0);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + 1.0);
+    } catch (e) {
+      console.warn('Audio play error:', e);
+    }
+  }
+
+  // Critical Collision Proximity Warning
   public playCriticalAlarm() {
     const ctx = this.getContext();
     if (!ctx) return;
@@ -75,7 +102,7 @@ class BridgeAudioSynthesizer {
       const gain = ctx.createGain();
 
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(659.25, now); // E5
+      osc.frequency.setValueAtTime(659.25, now);
 
       gain.gain.setValueAtTime(0.3, now);
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
@@ -90,7 +117,7 @@ class BridgeAudioSynthesizer {
     }
   }
 
-  // Tactical Confirmation Click / Keystroke tone
+  // Tactical Confirmation Click
   public playTacticalClick() {
     const ctx = this.getContext();
     if (!ctx) return;

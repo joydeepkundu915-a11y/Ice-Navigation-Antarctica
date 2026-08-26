@@ -37,6 +37,48 @@ export interface VesselFleetProfile {
   description: string;
 }
 
+export interface AISVessel {
+  id: string;
+  name: string;
+  imo: string;
+  call_sign: string;
+  flag: string;
+  polar_class: string;
+  lat: number;
+  lon: number;
+  speed_kts: number;
+  heading_deg: number;
+  destination: string;
+  status: string;
+  distance_nm?: number;
+  bearing_deg?: number;
+  dcpa_nm?: number;
+  tcpa_min?: number;
+  colregs_situation?: 'HEAD_ON' | 'CROSSING_GIVE_WAY' | 'CROSSING_STAND_ON' | 'OVERTAKING' | 'CLEAR';
+  avoidance_action?: string;
+}
+
+export interface DistressSOSState {
+  active: boolean;
+  distress_type: 'BESETMENT_SEVERE' | 'ICEBERG_COLLISION' | 'HULL_BREACH' | 'ENGINE_FAILURE' | 'MEDICAL_EMERGENCY';
+  souls_on_board: number;
+  epirb_active: boolean;
+  broadcast_time: string;
+  sar_station_notified: string;
+  sar_distance_nm: number;
+  estimated_sar_eta_hrs: number;
+}
+
+export interface AutoSailState {
+  enabled: boolean;
+  mode: 'AUTONOMOUS_ICE_PILOT' | 'LEAD_SEEKING' | 'FUEL_OPTIMAL_TRANSIT' | 'MANUAL_OVERRIDE';
+  target_waypoint_idx: number;
+  auto_avoidance_active: boolean;
+  avoidance_reason?: string;
+  conning_action: string;
+  speed_limit_applied_kts: number;
+}
+
 export interface HelmState {
   mode: 'AUTO_WAYPOINT' | 'MANUAL_CONNING';
   target_heading_deg: number;
@@ -54,7 +96,7 @@ export interface BridgeAlarm {
   timestamp: string;
   title: string;
   description: string;
-  category: 'COLLISION' | 'POLARIS_RIO' | 'BESETMENT' | 'METOCEAN' | 'EQUIPMENT';
+  category: 'COLLISION' | 'POLARIS_RIO' | 'BESETMENT' | 'METOCEAN' | 'EQUIPMENT' | 'DISTRESS_GMDSS';
   severity: 'CRITICAL' | 'WARNING' | 'CAUTION';
   acknowledged: boolean;
   source: string;
