@@ -37,7 +37,7 @@ import { bridgeAudio } from './services/audioAlerts';
 
 export const App: React.FC = () => {
   // Login Authentication State
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(true); // Default logged in with easy toggle/logout
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(true);
   const [currentUser, setCurrentUser] = useState<ShipUser | null>({
     id: 'usr_polar_master_1',
     call_sign: 'ZDLS1',
@@ -688,6 +688,8 @@ export const App: React.FC = () => {
           <TacticalRadarHUD
             vessel={vessel}
             icebergs={icebergs}
+            aisVessels={aisVessels}
+            stations={stations}
             onSelectIceberg={(berg) => {
               setSelectedIceberg(berg);
               setActiveTab('icebergs');
