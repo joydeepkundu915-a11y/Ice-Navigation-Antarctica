@@ -18,7 +18,7 @@ export const IcebergLogo: React.FC<IcebergLogoProps> = ({
     >
       {glow && (
         <div 
-          className="absolute inset-0 rounded-full bg-cyan-400/20 blur-md pointer-events-none animate-pulse"
+          className="absolute inset-0 rounded-full bg-amber-400/25 blur-md pointer-events-none animate-pulse"
           style={{ width: size, height: size }}
         />
       )}
@@ -31,19 +31,21 @@ export const IcebergLogo: React.FC<IcebergLogoProps> = ({
         className="relative z-10 drop-shadow-md"
       >
         <defs>
-          {/* Gradients for Iceberg Facets */}
+          {/* Gradients for Iceberg Peak */}
           <linearGradient id="iceTipGrad" x1="50" y1="10" x2="35" y2="46" gradientUnits="userSpaceOnUse">
             <stop offset="0%" stopColor="#ffffff" />
-            <stop offset="60%" stopColor="#bae6fd" />
+            <stop offset="50%" stopColor="#fef08a" />
+            <stop offset="80%" stopColor="#bae6fd" />
             <stop offset="100%" stopColor="#38bdf8" />
           </linearGradient>
 
           <linearGradient id="iceTipGradRight" x1="50" y1="10" x2="70" y2="46" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor="#f0f9ff" />
-            <stop offset="50%" stopColor="#7dd3fc" />
+            <stop offset="0%" stopColor="#fef9c3" />
+            <stop offset="40%" stopColor="#7dd3fc" />
             <stop offset="100%" stopColor="#0284c7" />
           </linearGradient>
 
+          {/* Gradients for Deep Submerged Keel */}
           <linearGradient id="iceKeelGradLeft" x1="50" y1="46" x2="25" y2="92" gradientUnits="userSpaceOnUse">
             <stop offset="0%" stopColor="#0284c7" />
             <stop offset="50%" stopColor="#0369a1" />
@@ -56,34 +58,34 @@ export const IcebergLogo: React.FC<IcebergLogoProps> = ({
             <stop offset="100%" stopColor="#082f49" />
           </linearGradient>
 
-          <linearGradient id="waterlineGrad" x1="10" y1="46" x2="90" y2="46" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor="#00f2fe" stopOpacity="0" />
+          {/* Radiant Golden-Cyan Auroral Waterline Line */}
+          <linearGradient id="goldWaterlineGrad" x1="5" y1="46" x2="95" y2="46" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#38bdf8" stopOpacity="0" />
             <stop offset="20%" stopColor="#00f2fe" stopOpacity="0.8" />
-            <stop offset="50%" stopColor="#38bdf8" stopOpacity="1" />
+            <stop offset="40%" stopColor="#fef08a" stopOpacity="1" />
+            <stop offset="50%" stopColor="#f59e0b" stopOpacity="1" />
+            <stop offset="60%" stopColor="#fbbf24" stopOpacity="1" />
             <stop offset="80%" stopColor="#00f2fe" stopOpacity="0.8" />
-            <stop offset="100%" stopColor="#00f2fe" stopOpacity="0" />
+            <stop offset="100%" stopColor="#38bdf8" stopOpacity="0" />
           </linearGradient>
 
-          <filter id="iceGlow" x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur stdDeviation="2" result="blur" />
+          <filter id="goldGlow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="1.5" result="blur" />
             <feComposite in="SourceGraphic" in2="blur" operator="over" />
           </filter>
         </defs>
 
-        {/* Submerged Iceberg Keel (Massive Deep Structure below Waterline) */}
-        {/* Keel Left Facet */}
+        {/* Submerged Keel (Massive Deep Structure below Waterline) */}
         <polygon
           points="50,46 22,46 16,68 34,92 50,88"
           fill="url(#iceKeelGradLeft)"
           opacity="0.85"
         />
-        {/* Keel Right Facet */}
         <polygon
           points="50,46 78,46 84,66 68,92 50,88"
           fill="url(#iceKeelGradRight)"
           opacity="0.9"
         />
-        {/* Keel Center Crevasse line */}
         <polyline
           points="50,46 46,65 50,88"
           stroke="#38bdf8"
@@ -92,63 +94,69 @@ export const IcebergLogo: React.FC<IcebergLogoProps> = ({
           opacity="0.6"
         />
 
-        {/* Exposed Iceberg Tip (Above Waterline 10-15%) */}
-        {/* Left Sunlit Peak */}
+        {/* Exposed Peak (Above Waterline) with Golden Shimmer Highlights */}
         <polygon
           points="50,12 30,46 50,46"
           fill="url(#iceTipGrad)"
         />
-        {/* Right Shaded Peak */}
         <polygon
           points="50,12 70,46 50,46"
           fill="url(#iceTipGradRight)"
         />
-        {/* Secondary Left Needle Peak */}
         <polygon
           points="35,26 22,46 36,46"
-          fill="#e0f2fe"
-          opacity="0.9"
+          fill="#fef9c3"
+          opacity="0.85"
         />
-        {/* Secondary Right Ridge */}
         <polygon
           points="62,28 78,46 62,46"
           fill="#38bdf8"
           opacity="0.85"
         />
 
-        {/* Crystalline Highlight Ridges on Peak */}
+        {/* Crystalline Golden Highlight Ridges */}
         <polyline
           points="50,12 48,30 50,46"
-          stroke="#ffffff"
+          stroke="#fef08a"
           strokeWidth="1.5"
           strokeLinecap="round"
         />
         <polyline
           points="35,26 38,36 36,46"
           stroke="#ffffff"
-          strokeWidth="1"
+          strokeWidth="1.2"
           strokeLinecap="round"
-          opacity="0.8"
+          opacity="0.9"
         />
 
-        {/* Water Surface Line */}
+        {/* Attractive Radiant Golden Water Surface Line with Outer Halo */}
         <line
-          x1="8"
+          x1="6"
           y1="46"
-          x2="92"
+          x2="94"
           y2="46"
-          stroke="url(#waterlineGrad)"
+          stroke="#fbbf24"
+          strokeWidth="4"
+          strokeLinecap="round"
+          opacity="0.4"
+        />
+        <line
+          x1="6"
+          y1="46"
+          x2="94"
+          y2="46"
+          stroke="url(#goldWaterlineGrad)"
           strokeWidth="2.5"
           strokeLinecap="round"
         />
 
-        {/* Subtle Water Ripples */}
+        {/* Soft Golden Water Ripples */}
         <path
-          d="M 14 50 Q 24 48 34 50 Q 44 52 54 50 Q 64 48 74 50 Q 84 52 88 50"
-          stroke="#38bdf8"
+          d="M 12 50 Q 22 48 32 50 Q 42 52 52 50 Q 62 48 72 50 Q 82 52 88 50"
+          stroke="#fef08a"
           strokeWidth="1"
           strokeLinecap="round"
-          opacity="0.4"
+          opacity="0.6"
           fill="none"
         />
       </svg>

@@ -64,7 +64,7 @@ export const SARVisionWorkbench: React.FC<SARVisionWorkbenchProps> = ({ onClose 
             <div>
               <h2 className="text-sm font-bold text-slate-100 flex items-center space-x-2">
                 <span>SAR SATELLITE ICE VISION & LEAD DETECTOR</span>
-                <span className="px-1.5 py-0.2 rounded text-[10px] bg-sky-950 text-sky-300 border border-sky-700">
+                <span className="px-1.5 py-0.2 rounded text-[10px] bg-amber-950 text-amber-300 border border-amber-600">
                   SENTINEL-1 C-BAND
                 </span>
               </h2>
@@ -104,7 +104,7 @@ export const SARVisionWorkbench: React.FC<SARVisionWorkbenchProps> = ({ onClose 
                 }}
                 className={'px-3 py-1.5 rounded-lg border text-xs font-bold whitespace-nowrap transition ' + (
                   isSel
-                    ? 'bg-sky-950 border-sky-400 text-white shadow-md'
+                    ? 'bg-amber-950 border-amber-400 text-white shadow-md'
                     : 'bg-polar-850 border-polar-700 text-slate-400 hover:bg-polar-800'
                 )}
               >
@@ -123,7 +123,7 @@ export const SARVisionWorkbench: React.FC<SARVisionWorkbenchProps> = ({ onClose 
                 <span className="text-slate-300 font-bold">RADAR SCENE: {analysis.title}</span>
                 <button
                   onClick={() => setShowOverlays(!showOverlays)}
-                  className={'px-2 py-0.5 rounded text-[10px] border ' + (showOverlays ? 'bg-sky-600 text-white' : 'bg-polar-900 text-slate-400')}
+                  className={'px-2 py-0.5 rounded text-[10px] border ' + (showOverlays ? 'bg-amber-600 text-white font-bold' : 'bg-polar-900 text-slate-400')}
                 >
                   {showOverlays ? 'AI OVERLAYS ON' : 'RAW SAR ONLY'}
                 </button>
@@ -131,11 +131,14 @@ export const SARVisionWorkbench: React.FC<SARVisionWorkbenchProps> = ({ onClose 
 
               <div className="relative rounded-lg overflow-hidden border border-polar-700 bg-polar-950 aspect-video flex items-center justify-center">
                 <div className="w-full h-full bg-gradient-to-tr from-slate-950 via-slate-900 to-sky-950 p-6 flex flex-col justify-between relative">
-                  <div className="absolute inset-0 bg-[radial-gradient(#38bdf8_1px,transparent_1px)] [background-size:16px_16px] opacity-15" />
+                  <div className="absolute inset-0 bg-[radial-gradient(#f59e0b_1px,transparent_1px)] [background-size:16px_16px] opacity-15" />
                   
-                  {/* Lead Corridor */}
-                  <div className="absolute top-1/4 left-0 right-1/3 h-12 bg-sky-500/20 border-y border-sky-400/50 transform -rotate-6 flex items-center px-4">
-                    <span className="text-[10px] text-sky-300 font-bold">DETECTED THERMAL LEAD (OPEN CHANNEL)</span>
+                  {/* Attractive Glowing Golden Lead Corridor */}
+                  <div className="absolute top-1/4 left-0 right-1/3 h-12 bg-gradient-to-r from-amber-500/25 via-yellow-400/30 to-amber-500/20 border-y-2 border-yellow-400/70 shadow-lg shadow-yellow-500/20 transform -rotate-6 flex items-center px-4">
+                    <span className="text-[10px] text-yellow-200 font-extrabold flex items-center space-x-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-yellow-300 animate-spin-slow" />
+                      <span>DETECTED GOLDEN THERMAL LEAD (OPEN CHANNEL)</span>
+                    </span>
                   </div>
 
                   {/* Mega Iceberg polygon */}
@@ -165,10 +168,10 @@ export const SARVisionWorkbench: React.FC<SARVisionWorkbenchProps> = ({ onClose 
               <div className="bg-polar-900 p-3 rounded border border-polar-700 space-y-2">
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-slate-400">NAVIGABILITY RATING:</span>
-                  <span className="text-emerald-400 font-bold">{analysis.navigability_score}/100</span>
+                  <span className="text-amber-400 font-bold">{analysis.navigability_score}/100</span>
                 </div>
                 <div className="w-full bg-polar-800 rounded-full h-2">
-                  <div className="bg-emerald-500 h-2 rounded-full" style={{ width: (analysis.navigability_score) + '%' }} />
+                  <div className="bg-gradient-to-r from-amber-500 to-yellow-400 h-2 rounded-full shadow" style={{ width: `${analysis.navigability_score}%` }} />
                 </div>
                 <p className="text-[11px] text-slate-300 italic pt-1">
                   "{analysis.conning_recommendation}"
@@ -182,7 +185,7 @@ export const SARVisionWorkbench: React.FC<SARVisionWorkbenchProps> = ({ onClose 
                 </span>
                 {analysis.detections?.map((d: any, i: number) => (
                   <div key={i} className="p-2 rounded bg-polar-900 border border-polar-700 text-[11px] space-y-0.5">
-                    <div className="flex justify-between text-sky-300 font-bold">
+                    <div className="flex justify-between text-yellow-300 font-bold">
                       <span>{d.label}</span>
                       <span className="text-[10px] text-slate-400">{(d.confidence * 100).toFixed(0)}%</span>
                     </div>

@@ -14,23 +14,24 @@ import {
   ShieldAlert, 
   Info,
   Ship,
-  AlertOctagon
+  AlertOctagon,
+  Sparkles
 } from 'lucide-react';
 import { Station, Iceberg, RoutePlan, VesselState, DisplayPalette, AISVessel, DistressSOSState } from '../types';
 import { bridgeAudio } from '../services/audioAlerts';
 
 // Custom Leaflet DivIcons
 const createVesselIcon = (heading: number, palette: DisplayPalette) => {
-  const strokeColor = palette === 'night' ? '#ef4444' : palette === 'day' ? '#0284c7' : '#38bdf8';
-  const fillColor = palette === 'night' ? '#991b1b' : palette === 'thermal' ? '#f59e0b' : '#00f2fe';
+  const strokeColor = palette === 'night' ? '#ef4444' : palette === 'day' ? '#0284c7' : '#f59e0b';
+  const fillColor = palette === 'night' ? '#991b1b' : palette === 'thermal' ? '#f59e0b' : '#fbbf24';
 
   return L.divIcon({
     className: 'vessel-marker',
     html: `
-      <div style="transform: rotate(${heading}deg); transition: transform 0.4s ease;">
+      <div style="transform: rotate(${heading}deg); transition: transform 0.4s ease; filter: drop-shadow(0 0 6px rgba(245, 158, 11, 0.6));">
         <svg width="34" height="34" viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <polygon points="17,2 28,30 17,23 6,30" fill="${strokeColor}" stroke="#ffffff" stroke-width="2" />
-          <circle cx="17" cy="17" r="3.5" fill="${fillColor}" />
+          <polygon points="17,2 28,30 17,23 6,30" fill="${fillColor}" stroke="#ffffff" stroke-width="2" />
+          <circle cx="17" cy="17" r="3.5" fill="#ffffff" />
         </svg>
       </div>
     `,
@@ -137,9 +138,22 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
       {/* Map Control Bar Overlay */}
       <div className="absolute top-3 right-3 z-[1000] bg-polar-850/90 backdrop-blur-md p-2.5 rounded-lg border border-polar-700 shadow-2xl flex flex-col space-y-1.5 text-[11px] font-mono">
         <div className="flex items-center space-x-2 text-slate-300 font-bold border-b border-polar-700 pb-1">
-          <Layers className="w-3.5 h-3.5 text-sky-400" />
+          <Layers className="w-3.5 h-3.5 text-amber-400" />
           <span>POLAR OVERLAYS</span>
         </div>
+
+        <label className="flex items-center space-x-2 text-slate-300 hover:text-white cursor-pointer">
+          <input
+            type="checkbox"
+            checked={showRoute}
+            onChange={(e) => setShowRoute(e.target.checked)}
+            className="rounded bg-polar-800 border-polar-600 text-amber-400 focus:ring-0"
+          />
+          <span className="flex items-center space-x-1.5">
+            <span className="w-2.5 h-1 rounded-sm bg-gradient-to-r from-amber-300 to-yellow-500 shadow-sm" />
+            <span className="font-bold text-amber-300">Golden POLARIS Route</span>
+          </span>
+        </label>
 
         <label className="flex items-center space-x-2 text-slate-300 hover:text-white cursor-pointer">
           <input
@@ -174,16 +188,6 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
         <label className="flex items-center space-x-2 text-slate-300 hover:text-white cursor-pointer">
           <input
             type="checkbox"
-            checked={showRoute}
-            onChange={(e) => setShowRoute(e.target.checked)}
-            className="rounded bg-polar-800 border-polar-600 text-sky-500 focus:ring-0"
-          />
-          <span>POLARIS Route & Leads</span>
-        </label>
-
-        <label className="flex items-center space-x-2 text-slate-300 hover:text-white cursor-pointer">
-          <input
-            type="checkbox"
             checked={showStations}
             onChange={(e) => setShowStations(e.target.checked)}
             className="rounded bg-polar-800 border-polar-600 text-sky-500 focus:ring-0"
@@ -194,22 +198,22 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
 
       {/* Map Legend */}
       <div className="absolute bottom-4 left-3 z-[1000] bg-polar-850/90 backdrop-blur-md p-2 rounded-lg border border-polar-700 shadow-2xl text-[10px] font-mono flex flex-col space-y-1 pointer-events-auto">
-        <span className="text-slate-400 font-bold border-b border-polar-700 pb-0.5">ICE CONCENTRATION (SIC)</span>
+        <span className="text-slate-400 font-bold border-b border-polar-700 pb-0.5">NAVIGATION LEGEND</span>
         <div className="flex items-center space-x-1.5">
-          <span className="w-3 h-3 rounded-sm bg-[#00f2fe]/40 border border-[#00f2fe]" />
-          <span className="text-slate-300">Open Water / Leads (&lt;15%)</span>
+          <span className="w-4 h-1.5 rounded-sm bg-gradient-to-r from-yellow-300 via-amber-400 to-yellow-500 shadow-md shadow-amber-500/50" />
+          <span className="text-amber-300 font-bold">Golden Optimal Polar Lead Route</span>
         </div>
         <div className="flex items-center space-x-1.5">
-          <span className="w-3 h-3 rounded-sm bg-[#38bdf8]/40 border border-[#38bdf8]" />
-          <span className="text-slate-300">Open Pack (15% - 60%)</span>
+          <span className="w-3 h-3 rounded-sm bg-[#00f2fe]/40 border border-[#00f2fe]" />
+          <span className="text-slate-300">Open Water (&lt;15% SIC)</span>
         </div>
         <div className="flex items-center space-x-1.5">
           <span className="w-3 h-3 rounded-sm bg-[#818cf8]/40 border border-[#818cf8]" />
-          <span className="text-slate-300">Close Pack (60% - 85%)</span>
+          <span className="text-slate-300">Close Pack (60% - 85% SIC)</span>
         </div>
         <div className="flex items-center space-x-1.5">
           <span className="w-3 h-3 rounded-sm bg-[#f43f5e]/40 border border-[#f43f5e]" />
-          <span className="text-slate-300">Fast Heavy Ice (&gt;85%)</span>
+          <span className="text-slate-300">Fast Heavy Ice (&gt;85% SIC)</span>
         </div>
       </div>
 
@@ -258,19 +262,46 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
           );
         })}
 
-        {/* 2. Active Route */}
+        {/* 2. Radiant Golden Navigation Route (Attractive Dual-Glow Golden Path) */}
         {showRoute && activeRoute && activeRoute.waypoints && (
           <>
+            {/* Luminous Golden Ambient Halo Layer */}
             <Polyline
               positions={activeRoute.waypoints.map((w) => [w.lat, w.lon])}
               pathOptions={{
-                color: '#38bdf8',
-                weight: 3.5,
-                dashArray: '8, 6',
-                opacity: 0.9
+                color: '#f59e0b',
+                weight: 8,
+                opacity: 0.35,
+                lineCap: 'round',
+                lineJoin: 'round'
               }}
             />
 
+            {/* Glowing Golden Secondary Layer */}
+            <Polyline
+              positions={activeRoute.waypoints.map((w) => [w.lat, w.lon])}
+              pathOptions={{
+                color: '#fbbf24',
+                weight: 4.5,
+                opacity: 0.75,
+                lineCap: 'round',
+                lineJoin: 'round'
+              }}
+            />
+
+            {/* Attractive Radiant Golden Core Line with Dynamic Dash */}
+            <Polyline
+              positions={activeRoute.waypoints.map((w) => [w.lat, w.lon])}
+              pathOptions={{
+                color: '#fef08a',
+                weight: 2.5,
+                dashArray: '10, 6',
+                opacity: 1.0,
+                lineCap: 'round'
+              }}
+            />
+
+            {/* Shimmering Golden Waypoint Markers */}
             {activeRoute.waypoints.map((wpt) => {
               const isAuth = wpt.polaris_status === 'AUTHORIZED';
               return (
@@ -279,17 +310,20 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
                   center={[wpt.lat, wpt.lon]}
                   radius={7000}
                   pathOptions={{
-                    color: isAuth ? '#10b981' : '#ef4444',
+                    color: '#fbbf24',
                     fillColor: isAuth ? '#10b981' : '#ef4444',
-                    fillOpacity: 0.7,
-                    weight: 2
+                    fillOpacity: 0.85,
+                    weight: 2.5
                   }}
                 >
                   <Tooltip>
                     <div className="text-xs font-mono p-1">
-                      <span className="font-bold text-white block">WPT {wpt.index}: {wpt.name}</span>
+                      <span className="font-bold text-amber-300 block flex items-center space-x-1">
+                        <span>⭐ WPT {wpt.index}: {wpt.name}</span>
+                      </span>
                       <span>RIO: {wpt.rio} ({wpt.polaris_status})</span>
                       <span className="block text-slate-300">Ice: {wpt.ice_concentration_pct}%</span>
+                      <span className="block text-slate-300">Speed: {wpt.speed_kts} kn</span>
                     </div>
                   </Tooltip>
                 </Circle>
@@ -298,30 +332,31 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
           </>
         )}
 
-        {/* 3. Vessel Dynamic Wake */}
+        {/* 3. Vessel Dynamic Wake (Luminous Champagne-Cyan Trail) */}
         {showWake && wakePoints.length > 1 && (
           <Polyline
             positions={wakePoints}
             pathOptions={{
-              color: '#00f2fe',
+              color: '#38bdf8',
               weight: 2.5,
-              opacity: 0.7,
+              opacity: 0.65,
               dashArray: '3, 4'
             }}
           />
         )}
 
-        {/* 4. Conning Heading Lookahead Vector */}
+        {/* 4. Conning Heading Lookahead Vector (Attractive Golden Vector Line) */}
         <Polyline
           positions={[
             [vessel.lat, vessel.lon],
             [lookaheadLat, lookaheadLon]
           ]}
           pathOptions={{
-            color: '#e0f2fe',
-            weight: 2,
-            dashArray: '2, 3',
-            opacity: 0.95
+            color: '#fde047',
+            weight: 2.8,
+            dashArray: '4, 4',
+            opacity: 0.95,
+            lineCap: 'round'
           }}
         />
 
@@ -332,7 +367,7 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
         >
           <Popup>
             <div className="text-xs font-mono space-y-1 p-1">
-              <span className="font-bold text-sky-400 block">{vessel.name}</span>
+              <span className="font-bold text-amber-400 block">{vessel.name}</span>
               <span className="block text-slate-300">Class: {vessel.polar_class}</span>
               <span className="block text-slate-300">Speed: {vessel.speed_kts.toFixed(1)} kts</span>
               <span className="block text-slate-300">Heading: {vessel.heading_deg.toFixed(0)}°</span>
@@ -366,7 +401,6 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
         {showAIS && aisVessels.map((tgt) => {
           const isCrit = (tgt.dcpa_nm || 99) < 2.0 && (tgt.tcpa_min || 99) < 20;
 
-          // Target lookahead
           const tgtLookLat = tgt.lat + (3.0 / 60.0) * Math.cos((tgt.heading_deg * Math.PI) / 180);
           const tgtLookLon = tgt.lon + (3.0 / (60.0 * Math.cos((tgt.lat * Math.PI) / 180))) * Math.sin((tgt.heading_deg * Math.PI) / 180);
 
