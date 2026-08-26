@@ -28,6 +28,7 @@ import {
   Ship,
   Sparkles
 } from 'lucide-react';
+import { IcebergLogo } from './IcebergLogo';
 import { VesselState, CPAAlert, ShipUser, DisplayPalette, BridgeAlarm, AutoSailState, AISVessel } from '../types';
 import { bridgeAudio } from '../services/audioAlerts';
 
@@ -50,6 +51,7 @@ interface BridgeHeaderProps {
   onOpenLogin: () => void;
   onOpenSOS: () => void;
   onOpenAIS: () => void;
+  onLogout: () => void;
   autoSail: AutoSailState;
   onToggleAutoSail: () => void;
   aisVessels: AISVessel[];
@@ -74,6 +76,7 @@ export const BridgeHeader: React.FC<BridgeHeaderProps> = ({
   onOpenLogin,
   onOpenSOS,
   onOpenAIS,
+  onLogout,
   autoSail,
   onToggleAutoSail,
   aisVessels
@@ -114,16 +117,15 @@ export const BridgeHeader: React.FC<BridgeHeaderProps> = ({
 
   return (
     <header className="bg-polar-850/95 border-b border-polar-700/80 px-3 py-1.5 flex flex-wrap items-center justify-between shadow-2xl z-30 relative select-none text-xs font-mono">
-      {/* Left: Brand, Vessel & Login Portal Button */}
+      {/* Left: Brand with Iceberg Logo, Vessel & Login Switcher */}
       <div className="flex items-center space-x-2">
         <div 
           onClick={onOpenLogin}
           className="cursor-pointer group flex items-center space-x-2 bg-polar-900/90 hover:bg-polar-800 p-1 pr-2.5 rounded border border-polar-700 hover:border-sky-500 transition-all shadow"
           title="Click to Switch Vessel or Login Officer Credentials"
         >
-          <div className="w-6 h-6 rounded bg-gradient-to-tr from-cyan-600 via-sky-500 to-blue-400 flex items-center justify-center text-white shadow">
-            <Compass className="w-3.5 h-3.5 group-hover:rotate-45 transition-transform" />
-          </div>
+          {/* Custom Glowing Iceberg Logo */}
+          <IcebergLogo size={28} glow={true} />
           <div>
             <div className="flex items-center space-x-1">
               <span className="font-extrabold text-[11px] text-white">
@@ -212,7 +214,7 @@ export const BridgeHeader: React.FC<BridgeHeaderProps> = ({
         </button>
       </div>
 
-      {/* Right: Navigation Tabs, Palette & IAMS Tools */}
+      {/* Right: Navigation Tabs, Palette, IAMS Tools & Logout */}
       <div className="flex items-center space-x-1.5">
         <nav className="flex items-center space-x-0.5 bg-polar-900 p-0.5 rounded border border-polar-700 text-[11px]">
           {navTabs.map((t) => {
@@ -315,6 +317,18 @@ export const BridgeHeader: React.FC<BridgeHeaderProps> = ({
                 {unacknowledgedAlarms.length}
               </span>
             )}
+          </button>
+
+          {/* Direct Logout Button */}
+          <button
+            onClick={() => {
+              onLogout();
+              bridgeAudio.playTacticalClick();
+            }}
+            className="bg-red-950/80 hover:bg-red-900 p-1 rounded border border-red-700 text-red-300 hover:text-white transition"
+            title="Log Out to Login Page"
+          >
+            <LogOut className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>

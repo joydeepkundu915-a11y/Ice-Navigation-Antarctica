@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { UserLoginPage } from './components/UserLoginPage';
 import { BridgeHeader } from './components/BridgeHeader';
 import { AntarcticMap } from './components/AntarcticMap';
 import { TacticalRadarHUD } from './components/TacticalRadarHUD';
@@ -35,16 +36,8 @@ import { polarApi } from './services/api';
 import { bridgeAudio } from './services/audioAlerts';
 
 export const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<string>('map');
-  const [palette, setPalette] = useState<DisplayPalette>('dusk');
-  const [stations, setStations] = useState<Station[]>([]);
-  const [icebergs, setIcebergs] = useState<Iceberg[]>([]);
-  const [iceGrid, setIceGrid] = useState<any[]>([]);
-  const [activeRoute, setActiveRoute] = useState<RoutePlan | null>(null);
-  const [selectedIceberg, setSelectedIceberg] = useState<Iceberg | null>(null);
-  const [selectedStation, setSelectedStation] = useState<Station | null>(null);
-
-  // Authentication & Fleet State
+  // Login Authentication State
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(true); // Default logged in with easy toggle/logout
   const [currentUser, setCurrentUser] = useState<ShipUser | null>({
     id: 'usr_polar_master_1',
     call_sign: 'ZDLS1',
@@ -57,11 +50,19 @@ export const App: React.FC = () => {
     certificate_valid_until: '2028-12-31',
     login_time: new Date().toISOString()
   });
-
   const [fleetProfile, setFleetProfile] = useState<VesselFleetProfile>(FLEET_DATABASE[1]);
-  const [isLoginOpen, setIsLoginOpen] = useState<boolean>(false);
+
+  const [activeTab, setActiveTab] = useState<string>('map');
+  const [palette, setPalette] = useState<DisplayPalette>('dusk');
+  const [stations, setStations] = useState<Station[]>([]);
+  const [icebergs, setIcebergs] = useState<Iceberg[]>([]);
+  const [iceGrid, setIceGrid] = useState<any[]>([]);
+  const [activeRoute, setActiveRoute] = useState<RoutePlan | null>(null);
+  const [selectedIceberg, setSelectedIceberg] = useState<Iceberg | null>(null);
+  const [selectedStation, setSelectedStation] = useState<Station | null>(null);
 
   // Modals & Drawers
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(false);
   const [isSafeHavenOpen, setIsSafeHavenOpen] = useState<boolean>(false);
   const [isRoutePlannerOpen, setIsRoutePlannerOpen] = useState<boolean>(false);
   const [isLogbookOpen, setIsLogbookOpen] = useState<boolean>(false);
@@ -248,7 +249,7 @@ export const App: React.FC = () => {
         else if (isAlarmsOpen) setIsAlarmsOpen(false);
         else if (isDepthSounderOpen) setIsDepthSounderOpen(false);
         else if (isHelmOpen) setIsHelmOpen(false);
-        else if (isLoginOpen) setIsLoginOpen(false);
+        else if (isLoginModalOpen) setIsLoginModalOpen(false);
         else if (activeTab !== 'map') {
           setActiveTab('map');
           bridgeAudio.playTacticalClick();
@@ -257,7 +258,7 @@ export const App: React.FC = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isSOSOpen, isAISOpen, isSafeHavenOpen, isRoutePlannerOpen, isLogbookOpen, isAlarmsOpen, isDepthSounderOpen, isHelmOpen, isLoginOpen, activeTab]);
+  }, [isSOSOpen, isAISOpen, isSafeHavenOpen, isRoutePlannerOpen, isLogbookOpen, isAlarmsOpen, isDepthSounderOpen, isHelmOpen, isLoginModalOpen, activeTab]);
 
   useEffect(() => {
     bridgeAudio.enableSound(soundEnabled);
@@ -295,7 +296,6 @@ export const App: React.FC = () => {
     if (!isPlaying) return;
 
     const interval = setInterval(() => {
-      // 1. Move AIS Target Vessels
       setAisVessels((prevList) => {
         return prevList.map((tgt) => {
           const distNm = (tgt.speed_kts / 3600.0) * 1.5 * playbackSpeed;
@@ -305,7 +305,6 @@ export const App: React.FC = () => {
           let nextLat = tgt.lat + dLat;
           let nextLon = tgt.lon + dLon;
 
-          // Compute Range & Bearing from Own Ship
           const dY = (nextLat - vessel.lat) * 60;
           const dX = (nextLon - vessel.lon) * 60 * Math.cos((vessel.lat * Math.PI) / 180);
           const currentDistNm = Math.hypot(dY, dX);
@@ -313,7 +312,6 @@ export const App: React.FC = () => {
           let brg = (Math.atan2(dX, dY) * 180) / Math.PI;
           if (brg < 0) brg += 360;
 
-          // Relative Speed & CPA Calculation
           const relVx = tgt.speed_kts * Math.sin((tgt.heading_deg * Math.PI) / 180) - vessel.speed_kts * Math.sin((vessel.heading_deg * Math.PI) / 180);
           const relVy = tgt.speed_kts * Math.cos((tgt.heading_deg * Math.PI) / 180) - vessel.speed_kts * Math.cos((vessel.heading_deg * Math.PI) / 180);
           const relV = Math.hypot(relVx, relVy);
@@ -330,7 +328,6 @@ export const App: React.FC = () => {
             }
           }
 
-          // Determine COLREGs Encounter Type
           let situation: 'HEAD_ON' | 'CROSSING_GIVE_WAY' | 'CROSSING_STAND_ON' | 'OVERTAKING' | 'CLEAR' = 'CLEAR';
           let action = 'Clear passage';
 
@@ -351,7 +348,6 @@ export const App: React.FC = () => {
             }
           }
 
-          // If on critical collision course and Auto-Sail is active, Auto-Sail takes evasive action
           if (dcpaNm < 1.8 && tcpaMin < 15 && autoSail.enabled) {
             setAutoSail(as => ({
               ...as,
@@ -375,13 +371,11 @@ export const App: React.FC = () => {
         });
       });
 
-      // 2. Own Ship Movement (Auto-Sail or Manual)
       setVessel((prev) => {
         let currentHdg = prev.heading_deg;
         let currentSpd = prev.speed_kts;
         let currentWptIdx = prev.current_waypoint_index || 0;
 
-        // Auto-Sail Mode
         if (autoSail.enabled && activeRoute && activeRoute.waypoints.length > 0) {
           const targetWpt = activeRoute.waypoints[currentWptIdx] || activeRoute.waypoints[activeRoute.waypoints.length - 1];
           const dLat = (targetWpt.lat - prev.lat) * 60;
@@ -391,7 +385,6 @@ export const App: React.FC = () => {
           let desiredHeading = (Math.atan2(dLon, dLat) * 180) / Math.PI;
           if (desiredHeading < 0) desiredHeading += 360;
 
-          // If avoiding, add +20 degrees Starboard offset
           if (autoSail.auto_avoidance_active) {
             desiredHeading = (desiredHeading + 20) % 360;
           }
@@ -477,6 +470,38 @@ export const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [isPlaying, playbackSpeed, autoSail.enabled, autoSail.auto_avoidance_active, helm.mode, helm.rudder_deg, helm.throttle_pct, activeRoute, stormActive, ridgeActive, fleetProfile, vessel.speed_kts, vessel.heading_deg]);
 
+  // Handle Login
+  const handleLoginSuccess = (user: ShipUser, profile: VesselFleetProfile) => {
+    setCurrentUser(user);
+    setFleetProfile(profile);
+    setVessel(prev => ({
+      ...prev,
+      name: profile.name,
+      polar_class: profile.ice_class,
+      imo: profile.imo
+    }));
+    setIsLoggedIn(true);
+    setIsLoginModalOpen(false);
+
+    setAlarms(prev => [
+      {
+        id: 'auth-' + Date.now(),
+        timestamp: new Date().toISOString().slice(11, 16) + ' UTC',
+        title: 'BRIDGE COMMAND HANDOVER COMPLETE',
+        description: 'Conning Officer ' + user.full_name + ' (' + user.role + ') logged in aboard ' + profile.name + '. Polar Class: ' + profile.ice_class + '.',
+        category: 'EQUIPMENT',
+        severity: 'CAUTION',
+        acknowledged: true,
+        source: 'BRIDGE AUTH'
+      },
+      ...prev
+    ]);
+  };
+
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+  };
+
   // Trigger SOS GMDSS Mayday
   const handleTriggerSOS = (distressType: any, souls: number) => {
     setSosState({
@@ -507,32 +532,6 @@ export const App: React.FC = () => {
 
   const handleCancelSOS = () => {
     setSosState(prev => ({ ...prev, active: false, epirb_active: false }));
-  };
-
-  const handleLoginSuccess = (user: ShipUser, profile: VesselFleetProfile) => {
-    setCurrentUser(user);
-    setFleetProfile(profile);
-    setVessel(prev => ({
-      ...prev,
-      name: profile.name,
-      polar_class: profile.ice_class,
-      imo: profile.imo
-    }));
-    setIsLoginOpen(false);
-
-    setAlarms(prev => [
-      {
-        id: 'auth-' + Date.now(),
-        timestamp: new Date().toISOString().slice(11, 16) + ' UTC',
-        title: 'BRIDGE COMMAND HANDOVER COMPLETE',
-        description: 'Conning Officer ' + user.full_name + ' (' + user.role + ') logged in aboard ' + profile.name + '. Polar Class: ' + profile.ice_class + '.',
-        category: 'EQUIPMENT',
-        severity: 'CAUTION',
-        acknowledged: true,
-        source: 'BRIDGE AUTH'
-      },
-      ...prev
-    ]);
   };
 
   const handleTriggerStorm = () => {
@@ -589,6 +588,16 @@ export const App: React.FC = () => {
     palette === 'thermal' ? 'bg-stone-950 text-amber-200' :
     'bg-polar-900 text-slate-100';
 
+  // If user is not logged in, render the dedicated Full-Page Login
+  if (!isLoggedIn) {
+    return (
+      <UserLoginPage
+        onLoginSuccess={handleLoginSuccess}
+        onContinueAsGuest={() => setIsLoggedIn(true)}
+      />
+    );
+  }
+
   return (
     <div className={'w-screen h-screen flex flex-col ' + paletteBgClass + ' overflow-hidden font-sans select-none transition-colors duration-300'}>
       {/* Top Tactical Bridge Header */}
@@ -608,9 +617,10 @@ export const App: React.FC = () => {
         onOpenLogbook={() => setIsLogbookOpen(true)}
         onOpenAlarms={() => setIsAlarmsOpen(true)}
         onOpenDepthSounder={() => setIsDepthSounderOpen(true)}
-        onOpenLogin={() => setIsLoginOpen(true)}
+        onOpenLogin={() => setIsLoginModalOpen(true)}
         onOpenSOS={() => setIsSOSOpen(true)}
         onOpenAIS={() => setIsAISOpen(true)}
+        onLogout={handleLogout}
         autoSail={autoSail}
         onToggleAutoSail={() => setAutoSail(as => ({ ...as, enabled: !as.enabled }))}
         aisVessels={aisVessels}
@@ -781,8 +791,8 @@ export const App: React.FC = () => {
 
       {/* Ship Login / Fleet Portal Modal */}
       <ShipLoginModal
-        isOpen={isLoginOpen}
-        onClose={() => setIsLoginOpen(false)}
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
         onLoginSuccess={handleLoginSuccess}
         currentUser={currentUser}
       />
