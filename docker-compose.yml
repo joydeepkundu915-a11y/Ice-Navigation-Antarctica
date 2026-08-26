@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  polaris-ecdis:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: polaris-ecdis:latest
+    container_name: polaris_nav_system
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+    restart: unless-stopped
