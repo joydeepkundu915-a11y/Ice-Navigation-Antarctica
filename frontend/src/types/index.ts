@@ -1,3 +1,73 @@
+export type DisplayPalette = 'day' | 'dusk' | 'night' | 'thermal';
+
+export type UserRole = 
+  | 'MASTER_CAPTAIN'
+  | 'ICE_PILOT'
+  | 'CHIEF_MATE'
+  | 'POLAR_SCIENTIST'
+  | 'FLEET_OPERATIONS';
+
+export interface ShipUser {
+  id: string;
+  call_sign: string;
+  vessel_imo: string;
+  vessel_name: string;
+  polar_class: string;
+  role: UserRole;
+  full_name: string;
+  license_number: string;
+  certificate_valid_until: string;
+  login_time: string;
+}
+
+export interface VesselFleetProfile {
+  imo: string;
+  name: string;
+  flag: string;
+  call_sign: string;
+  ice_class: string;
+  displacement_tons: number;
+  length_m: number;
+  beam_m: number;
+  draft_m: number;
+  engine_power_kw: number;
+  bow_ice_angle_deg: number;
+  max_speed_knots: number;
+  home_port: string;
+  description: string;
+}
+
+export interface HelmState {
+  mode: 'AUTO_WAYPOINT' | 'MANUAL_CONNING';
+  target_heading_deg: number;
+  target_speed_kts: number;
+  rudder_deg: number; // -35 to +35
+  throttle_pct: number; // -50 to +100
+  bow_thruster_pct: number; // -100 to +100
+  propeller_rpm: number;
+  hull_strain_mpa: number;
+  ice_crush_force_kn: number;
+}
+
+export interface BridgeAlarm {
+  id: string;
+  timestamp: string;
+  title: string;
+  description: string;
+  category: 'COLLISION' | 'POLARIS_RIO' | 'BESETMENT' | 'METOCEAN' | 'EQUIPMENT';
+  severity: 'CRITICAL' | 'WARNING' | 'CAUTION';
+  acknowledged: boolean;
+  source: string;
+}
+
+export interface BathymetryPoint {
+  time: string;
+  depth_m: number;
+  ukc_m: number;
+  ice_draft_m: number;
+  seabed_type: string;
+}
+
 export interface Station {
   id: string;
   name: string;
@@ -146,10 +216,13 @@ export interface VesselState {
   heading_deg: number;
   polar_class: string;
   name: string;
+  imo?: string;
   status: string;
   engine_load_pct: number;
   ice_resistance_kn: number;
   fuel_flow_m3_h: number;
+  current_waypoint_index?: number;
+  wake_history?: Array<{ lat: number; lon: number; speed: number; resistance: number; time: string }>;
 }
 
 export interface CPAAlert {
@@ -160,5 +233,5 @@ export interface CPAAlert {
   cpa_nm: number;
   tcpa_minutes: number;
   relative_speed_kts: number;
-  collision_risk: string;
+  collision_risk: 'CLEAR_PASSAGE' | 'PROXIMITY_WARNING' | 'CRITICAL_COLLISION_ALERT';
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle, Tooltip, Polygon } from 'react-leaflet';
 import L from 'leaflet';
 import { 
@@ -12,24 +12,32 @@ import {
   Thermometer, 
   Wind,
   ShieldAlert,
-  Info
+  Info,
+  Maximize2,
+  Minimize2
 } from 'lucide-react';
-import { Station, Iceberg, RoutePlan, VesselState } from '../types';
+import { Station, Iceberg, RoutePlan, VesselState, DisplayPalette } from '../types';
+import { bridgeAudio } from '../services/audioAlerts';
 
 // Custom Leaflet DivIcons
-const createVesselIcon = (heading: number) => L.divIcon({
-  className: 'vessel-marker',
-  html: `
-    <div style="transform: rotate(${heading}deg); transition: transform 0.5s ease;">
-      <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <polygon points="16,2 26,28 16,22 6,28" fill="#38bdf8" stroke="#ffffff" stroke-width="2" />
-        <circle cx="16" cy="16" r="3" fill="#00f2fe" />
-      </svg>
-    </div>
-  `,
-  iconSize: [32, 32],
-  iconAnchor: [16, 16]
-});
+const createVesselIcon = (heading: number, palette: DisplayPalette) => {
+  const strokeColor = palette === 'night' ? '#ef4444' : palette === 'day' ? '#0284c7' : '#38bdf8';
+  const fillColor = palette === 'night' ? '#991b1b' : palette === 'thermal' ? '#f59e0b' : '#00f2fe';
+
+  return L.divIcon({
+    className: 'vessel-marker',
+    html: `
+      <div style="transform: rotate(${heading}deg); transition: transform 0.4s ease;">
+        <svg width="34" height="34" viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <polygon points="17,2 28,30 17,23 6,30" fill="${strokeColor}" stroke="#ffffff" stroke-width="2" />
+          <circle cx="17" cy="17" r="3.5" fill="${fillColor}" />
+        </svg>
+      </div>
+    `,
+    iconSize: [34, 34],
+    iconAnchor: [17, 17]
+  });
+};
 
 const createIcebergIcon = (threatLevel: string, isMega: boolean) => {
   const color = threatLevel === 'EXTREME' ? '#ef4444' : threatLevel === 'HIGH' ? '#f59e0b' : '#38bdf8';
@@ -63,6 +71,7 @@ interface AntarcticMapProps {
   icebergs: Iceberg[];
   iceGrid: any[];
   activeRoute: RoutePlan | null;
+  palette?: DisplayPalette;
   onSelectIceberg: (iceberg: Iceberg) => void;
   onSelectStation: (station: Station) => void;
 }
@@ -73,16 +82,31 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
   icebergs,
   iceGrid,
   activeRoute,
+  palette = 'dusk',
   onSelectIceberg,
   onSelectStation
 }) => {
-  // Layer Toggles
   const [showSIC, setShowSIC] = useState<boolean>(true);
   const [showIcebergs, setShowIcebergs] = useState<boolean>(true);
   const [showStations, setShowStations] = useState<boolean>(true);
   const [showTrajectoryCones, setShowTrajectoryCones] = useState<boolean>(true);
   const [showRoute, setShowRoute] = useState<boolean>(true);
-  const [mapCenter, setMapCenter] = useState<[number, number]>([-65.0, -60.0]); // Antarctic Peninsula default
+  const [showWake, setShowWake] = useState<boolean>(true);
+  const [mapCenter, setMapCenter] = useState<[number, number]>([-65.0, -60.0]);
+
+  const tileUrl = palette === 'day'
+    ? 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'
+    : palette === 'night'
+    ? 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png'
+    : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+
+  const lookaheadDistNm = 4.0;
+  const lookaheadLat = vessel.lat + (lookaheadDistNm / 60.0) * Math.cos((vessel.heading_deg * Math.PI) / 180);
+  const lookaheadLon = vessel.lon + (lookaheadDistNm / (60.0 * Math.cos((vessel.lat * Math.PI) / 180))) * Math.sin((vessel.heading_deg * Math.PI) / 180);
+
+  const wakePoints = vessel.wake_history && vessel.wake_history.length > 0
+    ? vessel.wake_history.map(w => [w.lat, w.lon] as [number, number])
+    : [];
 
   return (
     <div className="relative w-full h-full bg-polar-900 overflow-hidden flex flex-col select-none">
@@ -98,9 +122,9 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
             type="checkbox"
             checked={showSIC}
             onChange={(e) => setShowSIC(e.target.checked)}
-            className="rounded bg-polar-900 border-polar-600 text-sky-500 focus:ring-0"
+            className="rounded bg-polar-800 border-polar-600 text-sky-500 focus:ring-0"
           />
-          <span>Sea-Ice Concentration (SIC)</span>
+          <span>Sea Ice Concentration</span>
         </label>
 
         <label className="flex items-center space-x-2 text-slate-300 hover:text-white cursor-pointer">
@@ -108,9 +132,9 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
             type="checkbox"
             checked={showIcebergs}
             onChange={(e) => setShowIcebergs(e.target.checked)}
-            className="rounded bg-polar-900 border-polar-600 text-sky-500 focus:ring-0"
+            className="rounded bg-polar-800 border-polar-600 text-sky-500 focus:ring-0"
           />
-          <span>Icebergs & Drift Vectors</span>
+          <span>Drifting Icebergs (A-23a...)</span>
         </label>
 
         <label className="flex items-center space-x-2 text-slate-300 hover:text-white cursor-pointer">
@@ -118,7 +142,7 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
             type="checkbox"
             checked={showTrajectoryCones}
             onChange={(e) => setShowTrajectoryCones(e.target.checked)}
-            className="rounded bg-polar-900 border-polar-600 text-sky-500 focus:ring-0"
+            className="rounded bg-polar-800 border-polar-600 text-sky-500 focus:ring-0"
           />
           <span>72h Monte Carlo Cones</span>
         </label>
@@ -126,143 +150,249 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
         <label className="flex items-center space-x-2 text-slate-300 hover:text-white cursor-pointer">
           <input
             type="checkbox"
-            checked={showStations}
-            onChange={(e) => setShowStations(e.target.checked)}
-            className="rounded bg-polar-900 border-polar-600 text-sky-500 focus:ring-0"
+            checked={showRoute}
+            onChange={(e) => setShowRoute(e.target.checked)}
+            className="rounded bg-polar-800 border-polar-600 text-sky-500 focus:ring-0"
           />
-          <span>Bases & Safe Havens</span>
+          <span>Active POLARIS Route</span>
         </label>
 
         <label className="flex items-center space-x-2 text-slate-300 hover:text-white cursor-pointer">
           <input
             type="checkbox"
-            checked={showRoute}
-            onChange={(e) => setShowRoute(e.target.checked)}
-            className="rounded bg-polar-900 border-polar-600 text-sky-500 focus:ring-0"
+            checked={showWake}
+            onChange={(e) => setShowWake(e.target.checked)}
+            className="rounded bg-polar-800 border-polar-600 text-sky-500 focus:ring-0"
           />
-          <span>POLARIS Route Track</span>
+          <span>Vessel Dynamic Wake</span>
         </label>
 
-        {/* Quick View Anchors */}
-        <div className="pt-2 border-t border-polar-700/80 flex flex-col space-y-1">
-          <span className="text-[10px] text-slate-400">SECTOR JUMP:</span>
-          <div className="grid grid-cols-2 gap-1">
-            <button
-              onClick={() => setMapCenter([-65.0, -64.0])}
-              className="px-2 py-1 bg-polar-700/70 hover:bg-polar-600 rounded text-[10px] text-sky-300 text-left transition-colors"
-            >
-              Peninsula / Weddell
-            </button>
-            <button
-              onClick={() => setMapCenter([-75.0, 175.0])}
-              className="px-2 py-1 bg-polar-700/70 hover:bg-polar-600 rounded text-[10px] text-sky-300 text-left transition-colors"
-            >
-              Ross Sea / McMurdo
-            </button>
-            <button
-              onClick={() => setMapCenter([-68.0, 75.0])}
-              className="px-2 py-1 bg-polar-700/70 hover:bg-polar-600 rounded text-[10px] text-sky-300 text-left transition-colors"
-            >
-              Prydz Bay / Bharati
-            </button>
-            <button
-              onClick={() => setMapCenter([-70.0, 10.0])}
-              className="px-2 py-1 bg-polar-700/70 hover:bg-polar-600 rounded text-[10px] text-sky-300 text-left transition-colors"
-            >
-              Maitri / Q. Maud
-            </button>
-          </div>
+        <label className="flex items-center space-x-2 text-slate-300 hover:text-white cursor-pointer">
+          <input
+            type="checkbox"
+            checked={showStations}
+            onChange={(e) => setShowStations(e.target.checked)}
+            className="rounded bg-polar-800 border-polar-600 text-sky-500 focus:ring-0"
+          />
+          <span>Research Stations / Shelters</span>
+        </label>
+      </div>
+
+      {/* Map Legend */}
+      <div className="absolute bottom-6 left-4 z-[1000] bg-polar-850/90 backdrop-blur-md p-3 rounded-lg border border-polar-700 shadow-2xl text-[11px] font-mono flex flex-col space-y-1.5 pointer-events-auto">
+        <span className="text-slate-400 font-bold border-b border-polar-700 pb-1">SEA-ICE CONCENTRATION (SIC)</span>
+        <div className="flex items-center space-x-2">
+          <span className="w-3.5 h-3.5 rounded-sm bg-[#00f2fe]/40 border border-[#00f2fe]" />
+          <span className="text-slate-300">Open Water / Leads (&lt;15%)</span>
+        </div>
+        <div className="flex items-center space-x-2">
+          <span className="w-3.5 h-3.5 rounded-sm bg-[#38bdf8]/40 border border-[#38bdf8]" />
+          <span className="text-slate-300">Open Pack (15% - 60%)</span>
+        </div>
+        <div className="flex items-center space-x-2">
+          <span className="w-3.5 h-3.5 rounded-sm bg-[#818cf8]/40 border border-[#818cf8]" />
+          <span className="text-slate-300">Close Pack (60% - 85%)</span>
+        </div>
+        <div className="flex items-center space-x-2">
+          <span className="w-3.5 h-3.5 rounded-sm bg-[#f43f5e]/40 border border-[#f43f5e]" />
+          <span className="text-slate-300">Consolidated Heavy Fast Ice (&gt;85%)</span>
         </div>
       </div>
 
-      {/* Map Legend Overlay */}
-      <div className="absolute bottom-4 left-4 z-[1000] bg-polar-850/90 backdrop-blur-md p-3 rounded-lg border border-polar-700 shadow-2xl text-[11px] font-mono flex items-center space-x-4">
-        <div className="flex flex-col space-y-1">
-          <span className="text-slate-400 font-semibold text-[10px]">SEA ICE CONCENTRATION (SIC)</span>
-          <div className="flex items-center space-x-1">
-            <span className="w-3 h-3 rounded-sm bg-sky-900 opacity-60"></span>
-            <span className="text-slate-300">10-30%</span>
-            <span className="w-3 h-3 rounded-sm bg-sky-600 opacity-70 ml-2"></span>
-            <span className="text-slate-300">30-70%</span>
-            <span className="w-3 h-3 rounded-sm bg-cyan-300 opacity-80 ml-2"></span>
-            <span className="text-slate-300">70-95%</span>
-            <span className="w-3 h-3 rounded-sm bg-white opacity-90 ml-2"></span>
-            <span className="text-slate-300">Fast Ice</span>
-          </div>
-        </div>
-
-        <div className="h-7 w-[1px] bg-polar-700" />
-
-        <div className="flex flex-col space-y-1">
-          <span className="text-slate-400 font-semibold text-[10px]">POLARIS RIO ROUTE</span>
-          <div className="flex items-center space-x-2">
-            <span className="flex items-center space-x-1">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-              <span className="text-slate-300">RIO &ge; 0 (Normal)</span>
-            </span>
-            <span className="flex items-center space-x-1">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
-              <span className="text-slate-300">RIO &lt; 0 (Elevated)</span>
-            </span>
-            <span className="flex items-center space-x-1">
-              <span className="w-2.5 h-2.5 rounded-full bg-red-500"></span>
-              <span className="text-slate-300">RIO &lt; -10 (Prohibited)</span>
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Leaflet Map Container */}
       <MapContainer
         center={mapCenter}
-        zoom={4}
-        minZoom={2}
+        zoom={5}
+        minZoom={3}
         maxZoom={10}
-        style={{ width: '100%', height: '100%' }}
-        className="z-10"
+        className="w-full h-full z-10"
+        attributionControl={false}
       >
-        {/* Dark Nautical Map Base Layer (CartoDB Dark Matter) */}
-        <TileLayer
-          attribution='&copy; <a href="https://carto.com/">CartoDB</a> &copy; OpenStreetMap'
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-        />
+        <TileLayer url={tileUrl} />
 
-        {/* 1. Sea Ice Concentration Spatial Grid Samples */}
-        {showSIC && iceGrid.map((pt, idx) => {
-          if (pt.sea_ice_concentration_pct < 10) return null;
-          const color = pt.sea_ice_concentration_pct > 80 
-            ? '#e0f2fe' 
-            : pt.sea_ice_concentration_pct > 50 
-              ? '#38bdf8' 
-              : '#0284c7';
-          const radiusMeters = 80000;
+        {/* 1. Sea Ice Concentration Overlay */}
+        {showSIC && iceGrid && iceGrid.map((pt, idx) => {
+          const conc = pt.sea_ice_concentration_pct;
+          if (conc <= 5) return null;
+
+          let color = '#00f2fe';
+          if (conc > 85) color = '#f43f5e';
+          else if (conc > 60) color = '#818cf8';
+          else if (conc > 30) color = '#38bdf8';
 
           return (
             <Circle
-              key={`sic-${idx}`}
+              key={'ice-' + idx}
               center={[pt.lat, pt.lon]}
-              radius={radiusMeters}
+              radius={28000}
               pathOptions={{
-                color: 'transparent',
+                color: color,
                 fillColor: color,
-                fillOpacity: (pt.sea_ice_concentration_pct / 100.0) * 0.45
+                fillOpacity: Math.min(0.55, conc / 150),
+                weight: 1,
+                dashArray: conc < 40 ? '4, 4' : undefined
               }}
             >
-              <Tooltip>
-                <div className="font-mono text-xs">
-                  <div className="font-bold text-sky-400">{pt.ice_stage}</div>
-                  <div>SIC: {pt.sea_ice_concentration_pct}%</div>
-                  <div>Thickness: {pt.sea_ice_thickness_m} m</div>
-                  <div>Drift: {pt.ice_drift_speed_kts} kts @ {pt.ice_drift_heading_deg}Â°</div>
-                  <div>Pressure Index: {pt.ice_pressure_index}/100</div>
+              <Tooltip sticky>
+                <div className="text-xs font-mono p-1">
+                  <p className="font-bold text-sky-400">ICE REGIME</p>
+                  <p>Conc: {conc}% ({pt.ice_stage})</p>
+                  <p>Thick: {pt.sea_ice_thickness_m}m</p>
+                  <p>Drift: {pt.ice_drift_speed_kts} kts @ {pt.ice_drift_heading_deg}°</p>
                 </div>
               </Tooltip>
             </Circle>
           );
         })}
 
-        {/* 2. Research Stations & Safe Havens */}
-        {showStations && stations.map((st) => (
+        {/* 2. Active Route */}
+        {showRoute && activeRoute && activeRoute.waypoints && (
+          <>
+            <Polyline
+              positions={activeRoute.waypoints.map((w) => [w.lat, w.lon])}
+              pathOptions={{
+                color: '#38bdf8',
+                weight: 3.5,
+                dashArray: '8, 6',
+                opacity: 0.9
+              }}
+            />
+
+            {activeRoute.waypoints.map((wpt) => {
+              const isAuth = wpt.polaris_status === 'AUTHORIZED';
+              return (
+                <Circle
+                  key={'wpt-' + wpt.index}
+                  center={[wpt.lat, wpt.lon]}
+                  radius={7000}
+                  pathOptions={{
+                    color: isAuth ? '#10b981' : '#ef4444',
+                    fillColor: isAuth ? '#10b981' : '#ef4444',
+                    fillOpacity: 0.7,
+                    weight: 2
+                  }}
+                >
+                  <Tooltip>
+                    <div className="text-xs font-mono p-1">
+                      <span className="font-bold text-white block">WPT {wpt.index}: {wpt.name}</span>
+                      <span>RIO: {wpt.rio} ({wpt.polaris_status})</span>
+                      <span className="block text-slate-300">Ice: {wpt.ice_concentration_pct}%</span>
+                    </div>
+                  </Tooltip>
+                </Circle>
+              );
+            })}
+          </>
+        )}
+
+        {/* 3. Vessel Dynamic Wake */}
+        {showWake && wakePoints.length > 1 && (
+          <Polyline
+            positions={wakePoints}
+            pathOptions={{
+              color: '#00f2fe',
+              weight: 2.5,
+              opacity: 0.7,
+              dashArray: '3, 4'
+            }}
+          />
+        )}
+
+        {/* 4. Conning Heading Lookahead Vector */}
+        <Polyline
+          positions={[
+            [vessel.lat, vessel.lon],
+            [lookaheadLat, lookaheadLon]
+          ]}
+          pathOptions={{
+            color: '#e0f2fe',
+            weight: 2,
+            dashArray: '2, 3',
+            opacity: 0.95
+          }}
+        />
+
+        {/* 5. Vessel Live Marker */}
+        <Marker
+          position={[vessel.lat, vessel.lon]}
+          icon={createVesselIcon(vessel.heading_deg, palette)}
+        >
+          <Popup>
+            <div className="text-xs font-mono space-y-1 p-1">
+              <span className="font-bold text-sky-400 block">{vessel.name}</span>
+              <span className="block text-slate-300">Class: {vessel.polar_class}</span>
+              <span className="block text-slate-300">Speed: {vessel.speed_kts.toFixed(1)} kts</span>
+              <span className="block text-slate-300">Heading: {vessel.heading_deg.toFixed(0)}°</span>
+              <span className="block text-slate-300">Status: {vessel.status}</span>
+            </div>
+          </Popup>
+        </Marker>
+
+        {/* 6. Drifting Icebergs */}
+        {showIcebergs && icebergs && icebergs.map((berg) => {
+          const isMega = berg.length_km > 30;
+
+          return (
+            <React.Fragment key={berg.id}>
+              {showTrajectoryCones && berg.trajectory_72h && berg.trajectory_72h.length > 0 && (
+                <>
+                  <Polyline
+                    positions={berg.trajectory_72h.map((t) => [t.lat, t.lon])}
+                    pathOptions={{
+                      color: berg.threat_level === 'EXTREME' ? '#f43f5e' : '#f59e0b',
+                      weight: 2,
+                      dashArray: '4, 4',
+                      opacity: 0.8
+                    }}
+                  />
+
+                  {berg.uncertainty_radii_nm?.['72h_nm'] && (
+                    <Circle
+                      center={[
+                        berg.trajectory_72h[berg.trajectory_72h.length - 1].lat,
+                        berg.trajectory_72h[berg.trajectory_72h.length - 1].lon
+                      ]}
+                      radius={berg.uncertainty_radii_nm['72h_nm'] * 1852}
+                      pathOptions={{
+                        color: '#f59e0b',
+                        fillColor: '#f59e0b',
+                        fillOpacity: 0.15,
+                        weight: 1,
+                        dashArray: '2, 4'
+                      }}
+                    >
+                      <Tooltip>
+                        <span className="text-xs font-mono">
+                          {berg.name} 72h Monte Carlo Envelope: ±{berg.uncertainty_radii_nm['72h_nm']} NM
+                        </span>
+                      </Tooltip>
+                    </Circle>
+                  )}
+                </>
+              )}
+
+              <Marker
+                position={[berg.lat, berg.lon]}
+                icon={createIcebergIcon(berg.threat_level, isMega)}
+                eventHandlers={{
+                  click: () => onSelectIceberg(berg)
+                }}
+              >
+                <Popup>
+                  <div className="text-xs font-mono space-y-1 p-1">
+                    <span className="font-bold text-amber-400 block">{berg.name}</span>
+                    <span className="block text-slate-300">Dimensions: {berg.length_km}km x {berg.width_km}km</span>
+                    <span className="block text-slate-300">Draft: {berg.draft_m}m</span>
+                    <span className="block text-slate-300">Drift: {berg.drift_speed_kts} kts @ {berg.drift_heading_deg}°</span>
+                    <span className="block text-red-400 font-semibold">Threat: {berg.threat_level}</span>
+                  </div>
+                </Popup>
+              </Marker>
+            </React.Fragment>
+          );
+        })}
+
+        {/* 7. Research Stations */}
+        {showStations && stations && stations.map((st) => (
           <Marker
             key={st.id}
             position={[st.lat, st.lon]}
@@ -272,170 +402,16 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
             }}
           >
             <Popup>
-              <div className="font-mono text-xs p-1 max-w-xs">
-                <div className="font-bold text-emerald-400 text-sm">{st.name}</div>
-                <div className="text-slate-300 text-[11px] mb-1">{st.operator}</div>
-                <div className="text-[10px] text-slate-400 mb-2">{st.sector}</div>
-                <div className="grid grid-cols-2 gap-1 text-[10px] bg-polar-900 p-1.5 rounded border border-polar-700 mb-2">
-                  <div>Anchorage: <span className={st.safe_anchorage ? 'text-emerald-400' : 'text-amber-400'}>{st.safe_anchorage ? `${st.anchorage_depth_m}m Safe` : 'Unsheltered'}</span></div>
-                  <div>VHF: <span className="text-sky-300">{st.vhf_channel}</span></div>
-                  <div>Medical: <span className="text-sky-300">{st.medical_level}</span></div>
-                  <div>Fuel: <span className="text-sky-300">{st.fuel_support}</span></div>
-                </div>
-                <p className="text-[11px] text-slate-300 leading-tight mb-2">{st.description}</p>
-                <button
-                  onClick={() => onSelectStation(st)}
-                  className="w-full py-1 bg-polar-700 hover:bg-polar-600 rounded text-sky-300 text-center font-semibold text-[10px] transition-colors"
-                >
-                  Inspect Haven Details
-                </button>
+              <div className="text-xs font-mono space-y-1 p-1">
+                <span className="font-bold text-emerald-400 block">{st.name}</span>
+                <span className="block text-slate-300">Operator: {st.operator}</span>
+                <span className="block text-slate-300">Shelter: {st.safe_anchorage ? 'YES' : 'LIMITED'}</span>
+                <span className="block text-slate-300">VHF: {st.vhf_channel}</span>
+                <span className="block text-slate-300">Medical: {st.medical_level}</span>
               </div>
             </Popup>
           </Marker>
         ))}
-
-        {/* 3. Icebergs & Trajectories */}
-        {showIcebergs && icebergs.map((berg) => {
-          const isMega = berg.length_km > 20;
-          const trajPositions: [number, number][] = berg.trajectory_72h 
-            ? berg.trajectory_72h.map(p => [p.lat, p.lon]) 
-            : [];
-
-          return (
-            <React.Fragment key={berg.id}>
-              {/* Central 72h Track Polyline */}
-              {showTrajectoryCones && trajPositions.length > 0 && (
-                <Polyline
-                  positions={trajPositions}
-                  pathOptions={{
-                    color: berg.threat_level === 'EXTREME' ? '#ef4444' : '#f59e0b',
-                    dashArray: '5, 8',
-                    weight: 2,
-                    opacity: 0.8
-                  }}
-                />
-              )}
-
-              {/* Monte Carlo Ensemble Dispersion Cones */}
-              {showTrajectoryCones && berg.monte_carlo_ensembles && berg.monte_carlo_ensembles.map((ens, eIdx) => (
-                <Polyline
-                  key={`ens-${berg.id}-${eIdx}`}
-                  positions={ens.map(p => [p.lat, p.lon])}
-                  pathOptions={{
-                    color: berg.threat_level === 'EXTREME' ? '#ef4444' : '#f59e0b',
-                    weight: 1,
-                    opacity: 0.15
-                  }}
-                />
-              ))}
-
-              {/* Iceberg Marker */}
-              <Marker
-                position={[berg.lat, berg.lon]}
-                icon={createIcebergIcon(berg.threat_level, isMega)}
-                eventHandlers={{
-                  click: () => onSelectIceberg(berg)
-                }}
-              >
-                <Popup>
-                  <div className="font-mono text-xs p-1 max-w-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-sky-400">{berg.name}</span>
-                      <span className={`px-1 rounded text-[9px] font-bold ${
-                        berg.threat_level === 'EXTREME' ? 'bg-red-950 text-red-300 border border-red-700' : 'bg-amber-950 text-amber-300 border border-amber-700'
-                      }`}>
-                        {berg.threat_level}
-                      </span>
-                    </div>
-                    <div className="text-[10px] text-slate-400 my-1">{berg.origin_shelf}</div>
-                    <div className="grid grid-cols-2 gap-1 text-[10px] bg-polar-900 p-1.5 rounded border border-polar-700 mb-2">
-                      <div>Dimensions: <span className="text-slate-200">{berg.length_km}x{berg.width_km} km</span></div>
-                      <div>Mass: <span className="text-slate-200">{berg.estimated_mass_gigatons} Gt</span></div>
-                      <div>Drift: <span className="text-slate-200">{berg.drift_speed_kts} kts @ {berg.drift_heading_deg}Â°</span></div>
-                      <div>Draft: <span className="text-slate-200">{berg.draft_m} m</span></div>
-                    </div>
-                    <p className="text-[10px] text-slate-300 leading-tight mb-2">{berg.notes}</p>
-                    <button
-                      onClick={() => onSelectIceberg(berg)}
-                      className="w-full py-1 bg-sky-950 hover:bg-sky-900 text-sky-300 border border-sky-600 rounded font-semibold text-[10px] transition-colors"
-                    >
-                      Inspect Hydrodynamic Model
-                    </button>
-                  </div>
-                </Popup>
-              </Marker>
-            </React.Fragment>
-          );
-        })}
-
-        {/* 4. Active Planned Route with Segment RIO Colors */}
-        {showRoute && activeRoute && activeRoute.waypoints.length > 1 && (
-          <>
-            {activeRoute.waypoints.map((wp, idx) => {
-              if (idx === 0) return null;
-              const prevWp = activeRoute.waypoints[idx - 1];
-              const segColor = wp.polaris_status === 'AUTHORIZED' 
-                ? '#10b981' 
-                : wp.polaris_status === 'ELEVATED_RISK' 
-                  ? '#f59e0b' 
-                  : '#ef4444';
-
-              return (
-                <Polyline
-                  key={`route-seg-${idx}`}
-                  positions={[[prevWp.lat, prevWp.lon], [wp.lat, wp.lon]]}
-                  pathOptions={{
-                    color: segColor,
-                    weight: 4,
-                    opacity: 0.9
-                  }}
-                />
-              );
-            })}
-
-            {/* Waypoint Markers */}
-            {activeRoute.waypoints.map((wp, idx) => (
-              <Circle
-                key={`wp-marker-${idx}`}
-                center={[wp.lat, wp.lon]}
-                radius={25000}
-                pathOptions={{
-                  color: wp.status_color,
-                  fillColor: '#0a1424',
-                  fillOpacity: 0.9,
-                  weight: 2
-                }}
-              >
-                <Tooltip>
-                  <div className="font-mono text-xs">
-                    <div className="font-bold text-sky-400">{wp.name}</div>
-                    <div>Leg Dist: {wp.leg_distance_nm} NM | Spd: {wp.speed_kts} kts</div>
-                    <div>SIC: {wp.ice_concentration_pct}% ({wp.ice_thickness_m}m)</div>
-                    <div className="font-bold" style={{ color: wp.status_color }}>
-                      RIO: {wp.rio} ({wp.polaris_status})
-                    </div>
-                  </div>
-                </Tooltip>
-              </Circle>
-            ))}
-          </>
-        )}
-
-        {/* 5. Live Vessel Marker */}
-        <Marker
-          position={[vessel.lat, vessel.lon]}
-          icon={createVesselIcon(vessel.heading_deg)}
-        >
-          <Popup>
-            <div className="font-mono text-xs p-1">
-              <div className="font-bold text-sky-400">{vessel.name}</div>
-              <div className="text-slate-300">Polar Class: <span className="text-cyan-300 font-bold">{vessel.polar_class}</span></div>
-              <div className="text-slate-300">Speed: <span className="text-white font-bold">{vessel.speed_kts} kts</span></div>
-              <div className="text-slate-300">Heading: <span className="text-white font-bold">{vessel.heading_deg}Â° Gyro</span></div>
-              <div className="text-slate-400 text-[10px] mt-1">{vessel.status}</div>
-            </div>
-          </Popup>
-        </Marker>
       </MapContainer>
     </div>
   );
