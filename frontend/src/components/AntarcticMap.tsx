@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle, Tooltip, Polygon } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle, Tooltip, Polygon, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { 
   Layers, 
@@ -19,7 +19,9 @@ import {
   Sparkles,
   Crosshair,
   Maximize2,
-  Shield
+  Shield,
+  Plus,
+  Minus
 } from 'lucide-react';
 import { Station, Iceberg, RoutePlan, VesselState, DisplayPalette, AISVessel, DistressSOSState } from '../types';
 import { bridgeAudio } from '../services/audioAlerts';
@@ -88,6 +90,104 @@ const createStationIcon = (isShelter: boolean) => L.divIcon({
   iconAnchor: [10, 10]
 });
 
+// Dedicated Interactive Glassmorphic Zoom Controller inside Leaflet
+const MapZoomController: React.FC<{
+  vesselLat: number;
+  vesselLon: number;
+}> = ({ vesselLat, vesselLon }) => {
+  const map = useMap();
+  const [currentZoom, setCurrentZoom] = useState<number>(map.getZoom());
+
+  useEffect(() => {
+    const onZoom = () => setCurrentZoom(map.getZoom());
+    map.on('zoomend', onZoom);
+    return () => {
+      map.off('zoomend', onZoom);
+    };
+  }, [map]);
+
+  const handleZoomIn = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    map.zoomIn();
+    bridgeAudio.playTacticalClick();
+  };
+
+  const handleZoomOut = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    map.zoomOut();
+    bridgeAudio.playTacticalClick();
+  };
+
+  const handleRecenter = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    map.flyTo([vesselLat, vesselLon], Math.max(6, map.getZoom()), { animate: true, duration: 1.0 });
+    bridgeAudio.playTacticalClick();
+  };
+
+  const handleResetPolarView = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    map.flyTo([-65.0, -60.0], 5, { animate: true, duration: 1.0 });
+    bridgeAudio.playTacticalClick();
+  };
+
+  return (
+    <div className="leaflet-top leaflet-left !top-4 !left-4 z-[1000] pointer-events-auto flex flex-col space-y-1.5 font-mono select-none">
+      <div className="glass-panel p-1.5 rounded-2xl border border-white/20 shadow-2xl flex flex-col space-y-1 backdrop-blur-xl">
+        {/* Zoom In Button */}
+        <button
+          type="button"
+          onClick={handleZoomIn}
+          className="w-10 h-10 rounded-xl glass-card hover:bg-sky-600/80 text-white font-bold text-lg flex items-center justify-center transition active:scale-90 border border-white/10 shadow-lg"
+          title="Zoom In [ + ]"
+        >
+          <Plus className="w-5 h-5 text-sky-300" />
+        </button>
+
+        {/* Current Zoom Level Badge */}
+        <div className="px-1 py-0.5 text-center text-[10px] text-amber-300 font-bold tracking-wider">
+          {currentZoom}x
+        </div>
+
+        {/* Zoom Out Button */}
+        <button
+          type="button"
+          onClick={handleZoomOut}
+          className="w-10 h-10 rounded-xl glass-card hover:bg-sky-600/80 text-white font-bold text-lg flex items-center justify-center transition active:scale-90 border border-white/10 shadow-lg"
+          title="Zoom Out [ − ]"
+        >
+          <Minus className="w-5 h-5 text-sky-300" />
+        </button>
+
+        <div className="w-full h-px bg-white/10 my-0.5" />
+
+        {/* Recenter on Vessel */}
+        <button
+          type="button"
+          onClick={handleRecenter}
+          className="w-10 h-10 rounded-xl glass-card hover:bg-emerald-600/80 text-emerald-300 flex items-center justify-center transition active:scale-90 border border-white/10 shadow-lg"
+          title="Center on Ship Conning Position"
+        >
+          <Crosshair className="w-5 h-5 text-emerald-400" />
+        </button>
+
+        {/* Reset Antarctic Overview */}
+        <button
+          type="button"
+          onClick={handleResetPolarView}
+          className="w-10 h-10 rounded-xl glass-card hover:bg-amber-600/80 text-amber-300 flex items-center justify-center transition active:scale-90 border border-white/10 shadow-lg"
+          title="Reset Antarctic Overview"
+        >
+          <Maximize2 className="w-4 h-4 text-amber-400" />
+        </button>
+      </div>
+    </div>
+  );
+};
+
 interface AntarcticMapProps {
   vessel: VesselState;
   stations: Station[];
@@ -139,7 +239,6 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
     ? vessel.wake_history.map(w => [w.lat, w.lon] as [number, number])
     : [];
 
-  // Critical collision threats (< 2.5 NM)
   const criticalThreatVessels = aisVessels.filter(v => (v.distance_nm || 99) < 4.0 && (v.dcpa_nm || 99) < 2.0);
   const isOwnShipEvasive = criticalThreatVessels.length > 0;
 
@@ -277,15 +376,23 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
         </div>
       </div>
 
+      {/* Primary Interactive ECDIS Map Container */}
       <MapContainer
         center={mapCenter}
         zoom={5}
-        minZoom={3}
-        maxZoom={10}
+        minZoom={2}
+        maxZoom={18}
+        scrollWheelZoom={true}
+        doubleClickZoom={true}
+        touchZoom={true}
+        zoomControl={false}
         className="w-full h-full z-10"
         attributionControl={false}
       >
         <TileLayer url={tileUrl} />
+
+        {/* Dedicated Interactive Zoom Controls & Recenter HUD */}
+        <MapZoomController vesselLat={vessel.lat} vesselLon={vessel.lon} />
 
         {/* 1. Sea Ice Concentration Circles */}
         {showSIC && iceGrid && iceGrid.map((pt, idx) => {
@@ -389,7 +496,6 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
         {/* 3. Own Ship Dynamic Anti-Collision Safety Domain (1.5 NM Enforced Buffer) */}
         {showSafetyDomains && (
           <>
-            {/* Inner Enforced Safety Barrier (1.5 NM = 2778m) */}
             <Circle
               center={[vessel.lat, vessel.lon]}
               radius={2778}
@@ -408,7 +514,6 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
               </Tooltip>
             </Circle>
 
-            {/* Outer ARPA Guard Detection Perimeter (3.0 NM = 5556m) */}
             <Circle
               center={[vessel.lat, vessel.lon]}
               radius={5556}
@@ -497,7 +602,6 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
 
           return (
             <React.Fragment key={tgt.id}>
-              {/* Safety Domain for Target Vessel (1.5 NM = 2778m) */}
               {showSafetyDomains && (
                 <Circle
                   center={[tgt.lat, tgt.lon]}
@@ -512,7 +616,6 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
                 />
               )}
 
-              {/* Proximity Range Line between Closing Ships with Distance Tag */}
               {isCrit && (
                 <Polyline
                   positions={[
@@ -534,7 +637,6 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
                 </Polyline>
               )}
 
-              {/* Target Heading Vector */}
               <Polyline
                 positions={[
                   [tgt.lat, tgt.lon],

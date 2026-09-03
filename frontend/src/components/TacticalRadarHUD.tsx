@@ -594,6 +594,22 @@ export const TacticalRadarHUD: React.FC<TacticalRadarHUDProps> = ({
                 <span>SWEEP BEAM: <strong className="text-emerald-400">{sweepAngleDeg.toFixed(0)}°</strong></span>
               </div>
               <div className="flex items-center space-x-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const ranges = [6, 12, 24, 48, 96];
+                    const idx = ranges.indexOf(radarRangeNm);
+                    if (idx > 0) {
+                      setRadarRangeNm(ranges[idx - 1]);
+                      bridgeAudio.playTacticalClick();
+                    }
+                  }}
+                  className="p-1.5 rounded-lg glass-card hover:bg-emerald-950 text-slate-300 hover:text-white transition active:scale-95"
+                  title="Zoom In (Decrease Range)"
+                >
+                  <ZoomIn className="w-3.5 h-3.5 text-emerald-400" />
+                </button>
+
                 {[6, 12, 24, 48, 96].map((rng) => (
                   <button
                     key={rng}
@@ -606,6 +622,22 @@ export const TacticalRadarHUD: React.FC<TacticalRadarHUDProps> = ({
                     {rng} NM
                   </button>
                 ))}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const ranges = [6, 12, 24, 48, 96];
+                    const idx = ranges.indexOf(radarRangeNm);
+                    if (idx < ranges.length - 1) {
+                      setRadarRangeNm(ranges[idx + 1]);
+                      bridgeAudio.playTacticalClick();
+                    }
+                  }}
+                  className="p-1.5 rounded-lg glass-card hover:bg-emerald-950 text-slate-300 hover:text-white transition active:scale-95"
+                  title="Zoom Out (Increase Range)"
+                >
+                  <ZoomOut className="w-3.5 h-3.5 text-emerald-400" />
+                </button>
               </div>
             </div>
 
@@ -616,6 +648,17 @@ export const TacticalRadarHUD: React.FC<TacticalRadarHUDProps> = ({
                 width={530}
                 height={490}
                 onClick={handleCanvasClick}
+                onWheel={(e) => {
+                  const ranges = [6, 12, 24, 48, 96];
+                  const idx = ranges.indexOf(radarRangeNm);
+                  if (e.deltaY < 0 && idx > 0) {
+                    setRadarRangeNm(ranges[idx - 1]);
+                    bridgeAudio.playTacticalClick();
+                  } else if (e.deltaY > 0 && idx < ranges.length - 1) {
+                    setRadarRangeNm(ranges[idx + 1]);
+                    bridgeAudio.playTacticalClick();
+                  }
+                }}
                 className="rounded-full border-2 border-emerald-500/70 shadow-2xl shadow-emerald-950/90 max-w-full"
               />
             </div>
