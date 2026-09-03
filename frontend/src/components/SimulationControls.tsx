@@ -12,7 +12,8 @@ import {
   AlertTriangle,
   Radio,
   Bot,
-  Ship
+  Ship,
+  Sparkles
 } from 'lucide-react';
 import { VesselState, AutoSailState } from '../types';
 import { bridgeAudio } from '../services/audioAlerts';
@@ -47,8 +48,8 @@ export const SimulationControls: React.FC<SimulationControlsProps> = ({
   onToggleAutoSail
 }) => {
   return (
-    <div className="bg-polar-850 border-t border-polar-700/80 px-3 py-2 flex flex-wrap items-center justify-between shadow-2xl z-30 select-none text-xs font-mono">
-      {/* Left: Playback, Speed & Auto-Sail */}
+    <div className="glass-panel border-t border-white/10 px-4 py-2 flex flex-wrap items-center justify-between shadow-2xl z-30 select-none text-xs font-mono">
+      {/* Left: Playback, Speed Multipliers & Auto-Sail */}
       <div className="flex items-center space-x-2.5">
         <button
           onClick={() => {
@@ -56,18 +57,18 @@ export const SimulationControls: React.FC<SimulationControlsProps> = ({
             bridgeAudio.playTacticalClick();
           }}
           className={
-            'flex items-center space-x-1.5 px-2.5 py-1 rounded font-bold border transition ' +
+            'flex items-center space-x-1.5 px-3 py-1.5 rounded-lg font-bold border transition shadow-sm active:scale-95 ' +
             (isPlaying
-              ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500 hover:bg-emerald-900'
-              : 'bg-amber-950/80 text-amber-300 border-amber-500 hover:bg-amber-900')
+              ? 'bg-emerald-950/90 text-emerald-300 border-emerald-500/70 hover:bg-emerald-900/90'
+              : 'bg-amber-950/90 text-amber-300 border-amber-500/70 hover:bg-amber-900/90')
           }
         >
-          {isPlaying ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
-          <span>{isPlaying ? 'SIM ACTIVE' : 'PAUSED'}</span>
+          {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+          <span>{isPlaying ? 'HYDRO ACTIVE' : 'SIM PAUSED'}</span>
         </button>
 
         {/* Speed Multipliers */}
-        <div className="flex items-center space-x-0.5 bg-polar-900 p-0.5 rounded border border-polar-700">
+        <div className="flex items-center space-x-0.5 bg-polar-950/80 p-0.5 rounded-lg border border-white/10 shadow-inner">
           {[1, 2, 5, 10, 20].map((spd) => (
             <button
               key={spd}
@@ -76,9 +77,9 @@ export const SimulationControls: React.FC<SimulationControlsProps> = ({
                 bridgeAudio.playTacticalClick();
               }}
               className={
-                'px-1.5 py-0.5 rounded text-[10px] font-bold transition ' +
+                'px-2 py-0.5 rounded-md text-[10px] font-bold transition ' +
                 (playbackSpeed === spd
-                  ? 'bg-sky-600 text-white'
+                  ? 'bg-gradient-to-r from-sky-600 to-cyan-500 text-white shadow-sm'
                   : 'text-slate-400 hover:text-slate-200')
               }
             >
@@ -93,14 +94,14 @@ export const SimulationControls: React.FC<SimulationControlsProps> = ({
             onToggleAutoSail();
             bridgeAudio.playWarningChime();
           }}
-          className={'px-2 py-1 rounded border text-[10px] font-bold flex items-center space-x-1 transition ' + (
+          className={'px-2.5 py-1.5 rounded-lg border text-[10px] font-bold flex items-center space-x-1.5 transition shadow-sm active:scale-95 ' + (
             autoSail.enabled
-              ? 'bg-emerald-950 text-emerald-300 border-emerald-500 shadow'
-              : 'bg-polar-900 text-slate-400 border-polar-700'
+              ? 'bg-emerald-950/90 text-emerald-300 border-emerald-500/80 shadow-emerald-950/50'
+              : 'bg-polar-900/80 text-slate-400 border-white/10 hover:text-white'
           )}
         >
-          <Bot className="w-3 h-3" />
-          <span>{autoSail.enabled ? 'AUTO-PILOT ACTIVE' : 'AUTO-SAIL STANDBY'}</span>
+          <Bot className={'w-3 h-3 ' + (autoSail.enabled ? 'text-emerald-400 animate-spin-slow' : 'text-slate-500')} />
+          <span>{autoSail.enabled ? 'AUTO-PILOT ACTIVE' : 'AUTO-SAIL OFF'}</span>
         </button>
 
         {/* Reset */}
@@ -109,30 +110,36 @@ export const SimulationControls: React.FC<SimulationControlsProps> = ({
             onResetSimulation();
             bridgeAudio.playTacticalClick();
           }}
-          className="text-slate-400 hover:text-white p-1 rounded border border-polar-700 hover:bg-polar-800 transition"
-          title="Reset Voyage to Starting Waypoint"
+          className="text-slate-400 hover:text-white p-1.5 rounded-lg border border-white/10 hover:bg-polar-800 transition"
+          title="Reset Voyage to Ushuaia Departure"
         >
-          <RotateCcw className="w-3 h-3" />
+          <RotateCcw className="w-3.5 h-3.5" />
         </button>
       </div>
 
-      {/* Center: Vessel Status Strip */}
+      {/* Center: Vessel Status & Propulsion Telemetry */}
       <div className="hidden lg:flex items-center space-x-3">
-        <div className="flex items-center space-x-1.5 text-slate-300">
+        <div className="flex items-center space-x-2 bg-polar-900/80 px-3 py-1 rounded-lg border border-white/5">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="text-[10px] font-semibold">{vessel.status}</span>
+          <span className="text-[10px] text-slate-200 font-semibold">{vessel.status}</span>
         </div>
 
-        <div className="flex items-center space-x-1.5 bg-polar-900 px-2 py-0.5 rounded border border-polar-700 text-[10px]">
+        <div className="flex items-center space-x-1.5 bg-polar-900/80 px-2.5 py-1 rounded-lg border border-white/5 text-[10px]">
           <Flame className="w-3 h-3 text-amber-400" />
-          <span className="text-slate-400">MGO:</span>
+          <span className="text-slate-400">FUEL:</span>
           <span className="text-white font-bold">{vessel.fuel_flow_m3_h.toFixed(2)} m³/h</span>
         </div>
 
-        <div className="flex items-center space-x-1.5 bg-polar-900 px-2 py-0.5 rounded border border-polar-700 text-[10px]">
+        <div className="flex items-center space-x-1.5 bg-polar-900/80 px-2.5 py-1 rounded-lg border border-white/5 text-[10px]">
           <Gauge className="w-3 h-3 text-sky-400" />
-          <span className="text-slate-400">ENGINE:</span>
+          <span className="text-slate-400">LOAD:</span>
           <span className="text-sky-300 font-bold">{vessel.engine_load_pct}%</span>
+          <div className="w-12 bg-polar-950 rounded-full h-1.5 ml-1 border border-white/10 overflow-hidden">
+            <div 
+              className="bg-gradient-to-r from-emerald-400 via-sky-400 to-amber-400 h-full rounded-full transition-all" 
+              style={{ width: `${vessel.engine_load_pct}%` }} 
+            />
+          </div>
         </div>
       </div>
 
@@ -143,7 +150,7 @@ export const SimulationControls: React.FC<SimulationControlsProps> = ({
             onTriggerStorm();
             bridgeAudio.playWarningChime();
           }}
-          className="bg-red-950/70 hover:bg-red-900 border border-red-600/80 text-red-200 px-2 py-1 rounded flex items-center space-x-1 transition text-[10px]"
+          className="bg-red-950/80 hover:bg-red-900 border border-red-600/70 text-red-200 px-2.5 py-1 rounded-lg flex items-center space-x-1 transition text-[10px] font-bold active:scale-95 shadow-sm"
           title="Inject Katabatic Force 10 Blizzard"
         >
           <Wind className="w-3 h-3 text-red-400" />
@@ -155,7 +162,7 @@ export const SimulationControls: React.FC<SimulationControlsProps> = ({
             onTriggerIceRidge();
             bridgeAudio.playWarningChime();
           }}
-          className="bg-purple-950/70 hover:bg-purple-900 border border-purple-600/80 text-purple-200 px-2 py-1 rounded flex items-center space-x-1 transition text-[10px]"
+          className="bg-purple-950/80 hover:bg-purple-900 border border-purple-600/70 text-purple-200 px-2.5 py-1 rounded-lg flex items-center space-x-1 transition text-[10px] font-bold active:scale-95 shadow-sm"
           title="Inject Consolidated Multi-Year Pressure Ridge"
         >
           <Zap className="w-3 h-3 text-purple-400" />
@@ -168,14 +175,14 @@ export const SimulationControls: React.FC<SimulationControlsProps> = ({
             bridgeAudio.playTacticalClick();
           }}
           className={
-            'px-2.5 py-1 rounded border font-bold flex items-center space-x-1 transition text-[10px] ' +
+            'px-3 py-1 rounded-lg border font-bold flex items-center space-x-1.5 transition text-[10px] shadow-md active:scale-95 ' +
             (isHelmOpen
-              ? 'bg-sky-600 text-white border-sky-400 shadow-md'
-              : 'bg-polar-800 text-slate-300 border-polar-600 hover:bg-polar-700')
+              ? 'bg-gradient-to-r from-sky-600 to-cyan-500 text-white border-sky-400'
+              : 'glass-card text-slate-300 hover:text-white')
           }
         >
-          <Sliders className="w-3 h-3" />
-          <span>HELM</span>
+          <Sliders className="w-3 h-3 text-sky-400" />
+          <span>HELM CONSOLE</span>
         </button>
       </div>
     </div>

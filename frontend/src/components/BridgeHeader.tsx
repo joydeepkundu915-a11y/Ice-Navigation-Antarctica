@@ -26,7 +26,9 @@ import {
   AlertOctagon,
   Bot,
   Ship,
-  Sparkles
+  Sparkles,
+  MapPin,
+  ChevronDown
 } from 'lucide-react';
 import { IcebergLogo } from './IcebergLogo';
 import { VesselState, CPAAlert, ShipUser, DisplayPalette, BridgeAlarm, AutoSailState, AISVessel } from '../types';
@@ -116,52 +118,85 @@ export const BridgeHeader: React.FC<BridgeHeaderProps> = ({
   ];
 
   return (
-    <header className="bg-polar-850/95 border-b border-polar-700/80 px-3 py-1.5 flex flex-wrap items-center justify-between shadow-2xl z-30 relative select-none text-xs font-mono">
-      {/* Left: Brand with Iceberg Logo, Vessel & Login Switcher */}
+    <header className="glass-panel border-b border-white/10 px-3 py-1.5 flex flex-wrap items-center justify-between shadow-2xl z-30 relative select-none text-xs font-mono">
+      {/* Left: Brand with Iceberg Logo, Vessel & Officer Status */}
       <div className="flex items-center space-x-2">
         <div 
           onClick={onOpenLogin}
-          className="cursor-pointer group flex items-center space-x-2 bg-polar-900/90 hover:bg-polar-800 p-1 pr-2.5 rounded border border-polar-700 hover:border-sky-500 transition-all shadow"
+          className="cursor-pointer group flex items-center space-x-2.5 bg-polar-900/90 hover:bg-polar-800/90 p-1.5 pr-3 rounded-xl border border-white/10 hover:border-sky-400/60 transition-all shadow-md shadow-black/40"
           title="Click to Switch Vessel or Login Officer Credentials"
         >
           {/* Custom Glowing Iceberg Logo */}
-          <IcebergLogo size={28} glow={true} />
+          <IcebergLogo size={32} glow={true} />
           <div>
-            <div className="flex items-center space-x-1">
-              <span className="font-extrabold text-[11px] text-white">
+            <div className="flex items-center space-x-1.5">
+              <span className="font-extrabold text-[12px] text-white tracking-wide">
                 POLARIS ECDIS
               </span>
-              <span className="px-1 py-0.1 rounded text-[8px] bg-sky-950 text-sky-300 border border-sky-700">
+              <span className="px-1.5 py-0.1 rounded text-[8px] font-bold bg-sky-950 text-sky-300 border border-sky-600/50">
                 PRO
               </span>
             </div>
-            <p className="text-[9px] text-slate-300 flex items-center space-x-1">
-              <span className="font-bold text-sky-400 truncate max-w-[90px]">{vessel.name}</span>
+            <p className="text-[10px] text-slate-300 flex items-center space-x-1">
+              <span className="font-bold text-sky-400 truncate max-w-[95px]">{vessel.name}</span>
               <span className="text-slate-600">•</span>
-              <span className="text-slate-400">{vessel.polar_class}</span>
+              <span className="text-amber-300 font-semibold">{vessel.polar_class}</span>
             </p>
           </div>
         </div>
 
         {/* ENC Status Pill */}
-        <div className="hidden md:flex items-center space-x-1 bg-polar-900/70 px-2 py-1 rounded border border-polar-700/60 text-[10px]">
+        <div className="hidden lg:flex items-center space-x-1.5 bg-polar-900/80 px-2.5 py-1 rounded-lg border border-white/5 text-[10px]">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
           <span className="text-slate-400">ENC:</span>
           <span className="text-slate-200 font-bold">INT 9054</span>
         </div>
 
-        {/* User Login Pill */}
+        {/* Officer Profile Badge */}
         <button
           onClick={onOpenLogin}
-          className="flex items-center space-x-1 bg-sky-950/80 hover:bg-sky-900 px-2 py-1 rounded border border-sky-600 text-[10px] text-sky-200 transition"
+          className="hidden sm:flex items-center space-x-1.5 bg-sky-950/80 hover:bg-sky-900/90 px-2.5 py-1 rounded-lg border border-sky-500/40 text-[10px] text-sky-200 transition"
           title="Login / Authenticate Bridge Watchkeeper"
         >
           <UserCheck className="w-3 h-3 text-sky-400" />
-          <span className="font-bold">{currentUser ? currentUser.full_name.split(' ')[1] || 'OFFICER' : 'LOGIN'}</span>
+          <span className="font-bold truncate max-w-[80px]">
+            {currentUser ? currentUser.full_name.split(' ')[1] || 'OFFICER' : 'LOGIN'}
+          </span>
         </button>
       </div>
 
-      {/* Center: Mission-Critical SOS, Auto-Sail, and AIS Action Bar */}
+      {/* Center Tactical Telemetry Strip (High-Density & Realistic) */}
+      <div className="hidden xl:flex items-center space-x-2 text-[10px]">
+        <div className="bg-polar-900/80 px-2.5 py-1 rounded-lg border border-white/5 flex items-center space-x-1.5">
+          <Navigation className="w-3 h-3 text-sky-400" />
+          <span className="text-slate-400">POS:</span>
+          <span className="text-slate-200 font-bold">
+            {Math.abs(vessel.lat).toFixed(2)}°S, {Math.abs(vessel.lon).toFixed(2)}°W
+          </span>
+        </div>
+
+        <div className="bg-polar-900/80 px-2.5 py-1 rounded-lg border border-white/5 flex items-center space-x-1.5">
+          <Compass className="w-3 h-3 text-cyan-400" />
+          <span className="text-slate-400">HDG:</span>
+          <span className="text-slate-200 font-bold">{vessel.heading_deg.toFixed(0)}°</span>
+          <span className="text-slate-600">|</span>
+          <span className="text-slate-400">SOG:</span>
+          <span className="text-emerald-400 font-bold">{vessel.speed_kts.toFixed(1)} kn</span>
+        </div>
+
+        <div className="bg-polar-900/80 px-2.5 py-1 rounded-lg border border-white/5 flex items-center space-x-1.5">
+          <Activity className="w-3 h-3 text-amber-400" />
+          <span className="text-slate-400">ICE CRUSH:</span>
+          <span className="text-amber-300 font-bold">{vessel.ice_resistance_kn.toFixed(0)} kN</span>
+        </div>
+
+        <div className="bg-polar-900/80 px-2.5 py-1 rounded-lg border border-white/5 flex items-center space-x-1.5">
+          <Clock className="w-3 h-3 text-slate-400" />
+          <span className="text-sky-300 font-bold">{utcTime}</span>
+        </div>
+      </div>
+
+      {/* Center-Right: Mission-Critical Action Buttons */}
       <div className="flex items-center space-x-2">
         {/* Glowing Red GMDSS SOS Button */}
         <button
@@ -169,7 +204,7 @@ export const BridgeHeader: React.FC<BridgeHeaderProps> = ({
             onOpenSOS();
             bridgeAudio.playTacticalClick();
           }}
-          className="bg-gradient-to-r from-red-700 via-red-600 to-rose-600 hover:from-red-600 hover:to-rose-500 text-white font-extrabold px-3 py-1 rounded shadow-lg shadow-red-950 flex items-center space-x-1.5 text-xs animate-pulse border border-red-400"
+          className="bg-gradient-to-r from-red-700 via-red-600 to-rose-600 hover:from-red-600 hover:to-rose-500 text-white font-extrabold px-3 py-1 rounded-lg shadow-lg shadow-red-950/60 flex items-center space-x-1.5 text-xs animate-pulse border border-red-400/80 transition active:scale-95"
           title="GMDSS Mayday Polar Distress Transceiver"
         >
           <AlertOctagon className="w-3.5 h-3.5 text-white" />
@@ -182,10 +217,10 @@ export const BridgeHeader: React.FC<BridgeHeaderProps> = ({
             onToggleAutoSail();
             bridgeAudio.playWarningChime();
           }}
-          className={'px-2.5 py-1 rounded font-bold text-xs flex items-center space-x-1.5 border transition shadow ' + (
+          className={'px-2.5 py-1 rounded-lg font-bold text-xs flex items-center space-x-1.5 border transition shadow active:scale-95 ' + (
             autoSail.enabled
-              ? 'bg-emerald-950 text-emerald-300 border-emerald-400 shadow-emerald-950'
-              : 'bg-polar-900 text-slate-400 border-polar-700 hover:text-white'
+              ? 'bg-emerald-950/90 text-emerald-300 border-emerald-500/80 shadow-emerald-950/50'
+              : 'bg-polar-900/80 text-slate-400 border-white/10 hover:text-white'
           )}
           title="Toggle Autonomous Polar Navigation (Auto-Avoidance & Lead Tracking)"
         >
@@ -199,33 +234,33 @@ export const BridgeHeader: React.FC<BridgeHeaderProps> = ({
             onOpenAIS();
             bridgeAudio.playTacticalClick();
           }}
-          className={'px-2 py-1 rounded font-bold text-[10px] flex items-center space-x-1 border transition ' + (
+          className={'px-2.5 py-1 rounded-lg font-bold text-[10px] flex items-center space-x-1.5 border transition active:scale-95 ' + (
             criticalAIS.length > 0
-              ? 'bg-red-950 border-red-500 text-red-200 animate-pulse'
-              : 'bg-purple-950/80 border-purple-700 text-purple-200 hover:bg-purple-900'
+              ? 'bg-red-950/90 border-red-500 text-red-200 animate-pulse'
+              : 'bg-purple-950/80 border-purple-600/50 text-purple-200 hover:bg-purple-900/90'
           )}
           title="AIS Multi-Vessel Traffic & COLREGs Anti-Collision Matrix"
         >
           <Ship className="w-3 h-3 text-purple-400" />
           <span>AIS ({aisVessels.length})</span>
           {criticalAIS.length > 0 && (
-            <span className="w-2 h-2 rounded-full bg-red-500" />
+            <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
           )}
         </button>
       </div>
 
-      {/* Right: Navigation Tabs, Palette, IAMS Tools & Logout */}
+      {/* Right: Navigation Tabs, Palette & IAMS Tools */}
       <div className="flex items-center space-x-1.5">
-        <nav className="flex items-center space-x-0.5 bg-polar-900 p-0.5 rounded border border-polar-700 text-[11px]">
+        <nav className="flex items-center space-x-0.5 bg-polar-950/80 p-0.5 rounded-lg border border-white/10 text-[11px] shadow-inner">
           {navTabs.map((t) => {
             const isActive = activeTab === t.key;
             return (
               <button
                 key={t.key}
                 onClick={() => handleTabClick(t.key)}
-                className={'px-2 py-0.5 rounded transition font-bold flex items-center space-x-1 ' + (
+                className={'px-2 py-0.5 rounded-md transition font-bold flex items-center space-x-1 ' + (
                   isActive
-                    ? 'bg-sky-600 text-white shadow-sm'
+                    ? 'bg-gradient-to-r from-sky-600 to-cyan-500 text-white shadow-sm'
                     : 'text-slate-400 hover:text-slate-200'
                 )}
                 title={isActive && t.key !== 'map' ? 'Click to close and return to Map' : t.label}
@@ -240,7 +275,7 @@ export const BridgeHeader: React.FC<BridgeHeaderProps> = ({
         </nav>
 
         {/* Palette Selector */}
-        <div className="flex items-center bg-polar-900 p-0.5 rounded border border-polar-700">
+        <div className="flex items-center bg-polar-950/80 p-0.5 rounded-lg border border-white/10 shadow-inner">
           <button
             onClick={() => onSetPalette('day')}
             className={'p-1 rounded transition ' + (palette === 'day' ? 'bg-amber-500/30 text-amber-300' : 'text-slate-400 hover:text-white')}
@@ -264,11 +299,11 @@ export const BridgeHeader: React.FC<BridgeHeaderProps> = ({
           </button>
         </div>
 
-        {/* Bridge Tools */}
+        {/* Bridge Tools Group */}
         <div className="flex items-center space-x-1">
           <button
             onClick={onOpenDepthSounder}
-            className="bg-polar-800 hover:bg-polar-700 p-1 rounded border border-polar-600 text-sky-400 hover:text-white transition"
+            className="glass-card hover:bg-polar-800 p-1.5 rounded-lg text-sky-400 hover:text-white transition"
             title="Depth Sounder"
           >
             <Waves className="w-3.5 h-3.5" />
@@ -276,7 +311,7 @@ export const BridgeHeader: React.FC<BridgeHeaderProps> = ({
 
           <button
             onClick={onOpenLogbook}
-            className="bg-polar-800 hover:bg-polar-700 p-1 rounded border border-polar-600 text-emerald-400 hover:text-white transition"
+            className="glass-card hover:bg-polar-800 p-1.5 rounded-lg text-emerald-400 hover:text-white transition"
             title="Polar Code Logbook"
           >
             <FileText className="w-3.5 h-3.5" />
@@ -284,7 +319,7 @@ export const BridgeHeader: React.FC<BridgeHeaderProps> = ({
 
           <button
             onClick={onOpenRoutePlanner}
-            className="bg-sky-950 hover:bg-sky-900 border border-sky-600 text-sky-200 px-2 py-0.5 rounded text-[10px] font-bold flex items-center space-x-1 shadow"
+            className="bg-sky-950/80 hover:bg-sky-900 border border-sky-600/60 text-sky-200 px-2 py-1 rounded-lg text-[10px] font-bold flex items-center space-x-1 shadow-sm transition"
           >
             <Navigation className="w-2.5 h-2.5 text-sky-400" />
             <span>ROUTES</span>
@@ -292,7 +327,7 @@ export const BridgeHeader: React.FC<BridgeHeaderProps> = ({
 
           <button
             onClick={onOpenSafeHaven}
-            className="bg-emerald-950 hover:bg-emerald-900 border border-emerald-600 text-emerald-200 px-2 py-0.5 rounded text-[10px] font-bold flex items-center space-x-1 shadow"
+            className="bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-600/60 text-emerald-200 px-2 py-1 rounded-lg text-[10px] font-bold flex items-center space-x-1 shadow-sm transition"
           >
             <ShieldCheck className="w-2.5 h-2.5 text-emerald-400" />
             <span>HAVEN</span>
@@ -300,7 +335,7 @@ export const BridgeHeader: React.FC<BridgeHeaderProps> = ({
 
           <button
             onClick={onToggleSound}
-            className={'p-1 rounded border transition ' + (soundEnabled ? 'bg-sky-950 border-sky-600 text-sky-400' : 'bg-polar-900 border-polar-700 text-slate-500')}
+            className={'p-1.5 rounded-lg border transition ' + (soundEnabled ? 'bg-sky-950/80 border-sky-500/50 text-sky-400' : 'bg-polar-900 border-white/5 text-slate-500')}
             title={soundEnabled ? 'Sound On' : 'Muted'}
           >
             {soundEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
@@ -308,7 +343,7 @@ export const BridgeHeader: React.FC<BridgeHeaderProps> = ({
 
           <button
             onClick={onOpenAlarms}
-            className={'relative p-1 rounded border transition ' + (hasCriticalAlarm ? 'bg-red-950 border-red-500 text-red-400 animate-pulse' : unacknowledgedAlarms.length > 0 ? 'bg-amber-950 border-amber-500 text-amber-400' : 'bg-polar-900 border-polar-700 text-slate-400')}
+            className={'relative p-1.5 rounded-lg border transition ' + (hasCriticalAlarm ? 'bg-red-950 border-red-500 text-red-400 animate-pulse' : unacknowledgedAlarms.length > 0 ? 'bg-amber-950 border-amber-500 text-amber-400' : 'bg-polar-900 border-white/5 text-slate-400')}
             title="IAMS Bridge Alarms"
           >
             <Bell className="w-3.5 h-3.5" />
@@ -325,7 +360,7 @@ export const BridgeHeader: React.FC<BridgeHeaderProps> = ({
               onLogout();
               bridgeAudio.playTacticalClick();
             }}
-            className="bg-red-950/80 hover:bg-red-900 p-1 rounded border border-red-700 text-red-300 hover:text-white transition"
+            className="bg-red-950/80 hover:bg-red-900 p-1.5 rounded-lg border border-red-700/60 text-red-300 hover:text-white transition"
             title="Log Out to Login Page"
           >
             <LogOut className="w-3.5 h-3.5" />

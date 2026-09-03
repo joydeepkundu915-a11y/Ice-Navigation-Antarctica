@@ -15,7 +15,8 @@ import {
   Filter, 
   Activity, 
   Layers, 
-  Anchor 
+  Anchor,
+  Sparkles 
 } from 'lucide-react';
 import { VesselState, Iceberg, AISVessel, Station } from '../types';
 import { bridgeAudio } from '../services/audioAlerts';
@@ -169,7 +170,6 @@ export const TacticalRadarHUD: React.FC<TacticalRadarHUDProps> = ({
   useEffect(() => {
     let animationFrameId: number;
     let angle = 0;
-    let lastSweepPass = 0;
 
     const render = () => {
       angle = (angle + 1.4) % 360;
@@ -187,31 +187,31 @@ export const TacticalRadarHUD: React.FC<TacticalRadarHUDProps> = ({
       const radius = Math.min(centerX, centerY) - 26;
 
       // 1. Radar Scope Base Gradient
-      ctx.fillStyle = '#050a10';
+      ctx.fillStyle = '#040912';
       ctx.fillRect(0, 0, width, height);
 
       const scopeGrad = ctx.createRadialGradient(centerX, centerY, 5, centerX, centerY, radius);
       if (bandMode === 'X_BAND') {
-        scopeGrad.addColorStop(0, '#021f14');
-        scopeGrad.addColorStop(0.7, '#01140c');
-        scopeGrad.addColorStop(1, '#000a06');
+        scopeGrad.addColorStop(0, '#022115');
+        scopeGrad.addColorStop(0.7, '#01150d');
+        scopeGrad.addColorStop(1, '#000c07');
       } else {
-        scopeGrad.addColorStop(0, '#02182b');
-        scopeGrad.addColorStop(0.7, '#01101e');
-        scopeGrad.addColorStop(1, '#00080f');
+        scopeGrad.addColorStop(0, '#021b30');
+        scopeGrad.addColorStop(0.7, '#011322');
+        scopeGrad.addColorStop(1, '#000a12');
       }
       ctx.fillStyle = scopeGrad;
       ctx.beginPath();
       ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
       ctx.fill();
 
-      // Outer Bezel
+      // Outer Bezel with subtle glow
       ctx.strokeStyle = bandMode === 'X_BAND' ? '#10b981' : '#38bdf8';
       ctx.lineWidth = 3;
       ctx.stroke();
 
       // 2. Azimuth Bearing Scale (Degree Ticks on Rim)
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
       ctx.lineWidth = 1;
       for (let d = 0; d < 360; d += 10) {
         const rad = (d * Math.PI) / 180;
@@ -227,11 +227,11 @@ export const TacticalRadarHUD: React.FC<TacticalRadarHUDProps> = ({
         ctx.stroke();
 
         if (d % 30 === 0) {
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
           ctx.font = '8px monospace';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          const textRad = (radius - 14);
+          const textRad = (radius - 15);
           ctx.fillText(`${d}°`, centerX + textRad * Math.cos(rad), centerY + textRad * Math.sin(rad));
         }
       }
@@ -247,10 +247,10 @@ export const TacticalRadarHUD: React.FC<TacticalRadarHUDProps> = ({
         ctx.stroke();
 
         // Range Label
-        ctx.fillStyle = 'rgba(52, 211, 153, 0.7)';
+        ctx.fillStyle = 'rgba(52, 211, 153, 0.8)';
         ctx.font = '9px monospace';
         ctx.textAlign = 'left';
-        ctx.fillText(`${((radarRangeNm / ringCount) * r).toFixed(0)} NM`, centerX + 4, centerY - ringRadius + 11);
+        ctx.fillText(`${((radarRangeNm / ringCount) * r).toFixed(0)} NM`, centerX + 5, centerY - ringRadius + 11);
       }
 
       // 4. Azimuth Crosshairs
@@ -262,19 +262,19 @@ export const TacticalRadarHUD: React.FC<TacticalRadarHUDProps> = ({
       ctx.lineTo(centerX, centerY + radius);
       ctx.stroke();
 
-      // 5. Guard Zone Ring (Safety Perimeter)
+      // 5. Guard Zone Safety Perimeter Ring
       if (guardRingNm <= radarRangeNm) {
         const guardPx = (guardRingNm / radarRangeNm) * radius;
-        ctx.strokeStyle = 'rgba(239, 68, 68, 0.45)';
-        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = 'rgba(239, 68, 68, 0.55)';
+        ctx.lineWidth = 1.8;
         ctx.setLineDash([4, 4]);
         ctx.beginPath();
         ctx.arc(centerX, centerY, guardPx, 0, Math.PI * 2);
         ctx.stroke();
         ctx.setLineDash([]);
-        ctx.fillStyle = 'rgba(239, 68, 68, 0.7)';
+        ctx.fillStyle = 'rgba(239, 68, 68, 0.85)';
         ctx.font = '8px monospace';
-        ctx.fillText(`GUARD: ${guardRingNm} NM`, centerX + 4, centerY - guardPx - 3);
+        ctx.fillText(`GUARD: ${guardRingNm} NM`, centerX + 5, centerY - guardPx - 3);
       }
 
       // 6. Rotating Phosphor Sweep Beam
@@ -286,7 +286,7 @@ export const TacticalRadarHUD: React.FC<TacticalRadarHUDProps> = ({
       ctx.closePath();
 
       const sweepGrad = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
-      sweepGrad.addColorStop(0, bandMode === 'X_BAND' ? 'rgba(52, 211, 153, 0.4)' : 'rgba(56, 189, 248, 0.4)');
+      sweepGrad.addColorStop(0, bandMode === 'X_BAND' ? 'rgba(52, 211, 153, 0.45)' : 'rgba(56, 189, 248, 0.45)');
       sweepGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
       ctx.fillStyle = sweepGrad;
       ctx.fill();
@@ -296,7 +296,7 @@ export const TacticalRadarHUD: React.FC<TacticalRadarHUDProps> = ({
       ctx.moveTo(centerX, centerY);
       ctx.lineTo(centerX + radius * Math.cos(sweepRad), centerY + radius * Math.sin(sweepRad));
       ctx.strokeStyle = bandMode === 'X_BAND' ? '#4ade80' : '#38bdf8';
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 2.2;
       ctx.stroke();
       ctx.restore();
 
@@ -306,17 +306,16 @@ export const TacticalRadarHUD: React.FC<TacticalRadarHUDProps> = ({
       ctx.arc(centerX, centerY, 5, 0, Math.PI * 2);
       ctx.fill();
 
-      // Heading Vector Line (6 min speed lookahead)
       let shipHdgOffset = (vessel.heading_deg - 90);
       if (motionMode === 'HEAD_UP') {
-        shipHdgOffset = -90; // Ship always points UP in Head-Up mode
+        shipHdgOffset = -90;
       }
       const hdgRad = (shipHdgOffset * Math.PI) / 180;
       ctx.strokeStyle = '#38bdf8';
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 2.2;
       ctx.beginPath();
       ctx.moveTo(centerX, centerY);
-      ctx.lineTo(centerX + 40 * Math.cos(hdgRad), centerY + 40 * Math.sin(hdgRad));
+      ctx.lineTo(centerX + 42 * Math.cos(hdgRad), centerY + 42 * Math.sin(hdgRad));
       ctx.stroke();
 
       // 8. Draw Radar Targets (Red = Danger, Deep Green = Safe, Amber = Caution)
@@ -333,15 +332,14 @@ export const TacticalRadarHUD: React.FC<TacticalRadarHUDProps> = ({
         const targetX = centerX + targetDistPx * Math.cos(targetRad);
         const targetY = centerY + targetDistPx * Math.sin(targetRad);
 
-        // Color coding: Red = Danger, Deep Green = Safe, Amber = Caution
         let echoColor = '#10b981'; // Deep Safe Green
-        let echoGlow = 'rgba(16, 185, 129, 0.4)';
+        let echoGlow = 'rgba(16, 185, 129, 0.5)';
         if (target.threat_level === 'DANGER') {
           echoColor = '#ef4444'; // Red Danger
-          echoGlow = 'rgba(239, 68, 68, 0.6)';
+          echoGlow = 'rgba(239, 68, 68, 0.7)';
         } else if (target.threat_level === 'CAUTION') {
           echoColor = '#f59e0b'; // Amber Caution
-          echoGlow = 'rgba(245, 158, 11, 0.5)';
+          echoGlow = 'rgba(245, 158, 11, 0.55)';
         }
 
         // Draw Target Echo Glow & Core
@@ -353,18 +351,15 @@ export const TacticalRadarHUD: React.FC<TacticalRadarHUDProps> = ({
         ctx.fillStyle = echoColor;
         ctx.beginPath();
         if (target.type === 'SHIP') {
-          // Vessel Triangle Marker
           ctx.arc(targetX, targetY, 4.5, 0, Math.PI * 2);
         } else if (target.type === 'ICEBERG') {
-          // Iceberg Diamond
           ctx.rect(targetX - 3.5, targetY - 3.5, 7, 7);
         } else {
-          // Station Square
           ctx.rect(targetX - 4, targetY - 4, 8, 8);
         }
         ctx.fill();
 
-        // Speed / Drift Vector (6-minute lookahead line)
+        // Speed / Drift Vector
         if (target.speed_kts > 0.5) {
           let vecHdg = target.heading_deg;
           if (motionMode === 'HEAD_UP') {
@@ -419,9 +414,8 @@ export const TacticalRadarHUD: React.FC<TacticalRadarHUDProps> = ({
     const centerY = canvas.height / 2;
     const radius = Math.min(centerX, centerY) - 26;
 
-    // Find nearest target within click radius
     let nearest: RadarTarget | null = null;
-    let minDist = 30; // 30px click threshold
+    let minDist = 30;
 
     allTargets.forEach((t) => {
       if (t.distance_nm > radarRangeNm) return;
@@ -452,53 +446,52 @@ export const TacticalRadarHUD: React.FC<TacticalRadarHUDProps> = ({
   const shipCount = allTargets.filter(t => t.type === 'SHIP').length;
 
   return (
-    <div className="w-full h-full bg-polar-900 p-3 overflow-y-auto font-mono select-none">
-      <div className="max-w-6xl mx-auto space-y-3">
+    <div className="w-full h-full bg-polar-900 p-4 overflow-y-auto font-mono select-none polar-grid-bg">
+      <div className="max-w-6xl mx-auto space-y-3.5">
         
         {/* Header with Scanner Status & Close */}
-        <div className="bg-polar-850 border border-polar-700 rounded-lg p-3 shadow-xl flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 rounded-lg bg-emerald-950 border border-emerald-600 text-emerald-400">
+        <div className="glass-panel rounded-2xl p-3.5 shadow-2xl flex items-center justify-between border border-white/10">
+          <div className="flex items-center space-x-3.5">
+            <div className="p-2.5 rounded-xl bg-emerald-950/80 border border-emerald-500/60 text-emerald-400 shadow-md">
               <Radio className="w-5 h-5 animate-pulse" />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-slate-100 flex items-center space-x-2">
+              <h2 className="text-sm font-extrabold text-white flex items-center space-x-2.5 tracking-wide">
                 <span>TACTICAL MULTI-BAND RADAR & ARPA SCANNER</span>
-                <span className={'px-1.5 py-0.2 rounded text-[10px] font-bold border ' + (
-                  bandMode === 'X_BAND' ? 'bg-emerald-950 text-emerald-300 border-emerald-600' : 'bg-sky-950 text-sky-300 border-sky-600'
+                <span className={'px-2 py-0.5 rounded-full text-[9px] font-bold border ' + (
+                  bandMode === 'X_BAND' ? 'bg-emerald-950 text-emerald-300 border-emerald-500/80 shadow-sm' : 'bg-sky-950 text-sky-300 border-sky-500/80 shadow-sm'
                 )}>
                   {bandMode === 'X_BAND' ? 'X-BAND 9.4 GHz (ICE RECOGNITION)' : 'S-BAND 3.0 GHz (LONG-RANGE SEA)'}
                 </span>
               </h2>
-              <p className="text-[10px] text-slate-400 flex items-center space-x-3">
-                <span className="flex items-center space-x-1">
+              <p className="text-[11px] text-slate-300 flex items-center space-x-3 mt-0.5">
+                <span className="flex items-center space-x-1.5">
                   <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
                   <strong className="text-red-400">RED: DANGER HAZARDS ({dangerCount})</strong>
                 </span>
                 <span className="text-slate-600">•</span>
-                <span className="flex items-center space-x-1">
+                <span className="flex items-center space-x-1.5">
                   <span className="w-2 h-2 rounded-full bg-emerald-400" />
                   <strong className="text-emerald-400">DEEP GREEN: SAFE CONTACTS ({safeCount})</strong>
                 </span>
                 <span className="text-slate-600">•</span>
-                <span className="flex items-center space-x-1">
-                  <Ship className="w-3 h-3 text-purple-400" />
+                <span className="flex items-center space-x-1.5">
+                  <Ship className="w-3.5 h-3.5 text-purple-400" />
                   <strong className="text-purple-300">SHIPS SCANNED ({shipCount})</strong>
                 </span>
               </p>
             </div>
           </div>
 
-          {/* Top Controls */}
+          {/* Top Mode Controls */}
           <div className="flex items-center space-x-2">
-            {/* Band Switcher */}
-            <div className="flex items-center space-x-1 bg-polar-900 p-1 rounded border border-polar-700 text-xs">
+            <div className="flex items-center space-x-1 bg-polar-950/80 p-0.5 rounded-lg border border-white/10 text-xs">
               <button
                 onClick={() => {
                   setBandMode('X_BAND');
                   bridgeAudio.playTacticalClick();
                 }}
-                className={'px-2 py-0.5 rounded transition text-[10px] ' + (bandMode === 'X_BAND' ? 'bg-emerald-600 text-white font-bold' : 'text-slate-400')}
+                className={'px-2.5 py-1 rounded-md transition text-[10px] font-bold ' + (bandMode === 'X_BAND' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400')}
               >
                 X-BAND
               </button>
@@ -507,23 +500,22 @@ export const TacticalRadarHUD: React.FC<TacticalRadarHUDProps> = ({
                   setBandMode('S_BAND');
                   bridgeAudio.playTacticalClick();
                 }}
-                className={'px-2 py-0.5 rounded transition text-[10px] ' + (bandMode === 'S_BAND' ? 'bg-sky-600 text-white font-bold' : 'text-slate-400')}
+                className={'px-2.5 py-1 rounded-md transition text-[10px] font-bold ' + (bandMode === 'S_BAND' ? 'bg-sky-600 text-white shadow-sm' : 'text-slate-400')}
               >
                 S-BAND
               </button>
             </div>
 
-            {/* Motion Mode */}
-            <div className="flex items-center space-x-1 bg-polar-900 p-1 rounded border border-polar-700 text-xs">
+            <div className="flex items-center space-x-1 bg-polar-950/80 p-0.5 rounded-lg border border-white/10 text-xs">
               <button
                 onClick={() => setMotionMode('NORTH_UP')}
-                className={'px-2 py-0.5 rounded transition text-[10px] ' + (motionMode === 'NORTH_UP' ? 'bg-emerald-600 text-white font-bold' : 'text-slate-400')}
+                className={'px-2.5 py-1 rounded-md transition text-[10px] font-bold ' + (motionMode === 'NORTH_UP' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400')}
               >
                 NORTH-UP
               </button>
               <button
                 onClick={() => setMotionMode('HEAD_UP')}
-                className={'px-2 py-0.5 rounded transition text-[10px] ' + (motionMode === 'HEAD_UP' ? 'bg-emerald-600 text-white font-bold' : 'text-slate-400')}
+                className={'px-2.5 py-1 rounded-md transition text-[10px] font-bold ' + (motionMode === 'HEAD_UP' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400')}
               >
                 HEAD-UP
               </button>
@@ -535,7 +527,7 @@ export const TacticalRadarHUD: React.FC<TacticalRadarHUDProps> = ({
                   onClose();
                   bridgeAudio.playTacticalClick();
                 }}
-                className="bg-polar-800 hover:bg-polar-700 text-slate-300 hover:text-white px-2.5 py-1 rounded border border-polar-600 text-xs flex items-center space-x-1"
+                className="glass-card hover:bg-polar-800 text-slate-300 hover:text-white px-3 py-1 rounded-lg text-xs flex items-center space-x-1.5 transition"
                 title="Return to ECDIS Map (ESC)"
               >
                 <X className="w-3.5 h-3.5 text-red-400" />
@@ -546,10 +538,10 @@ export const TacticalRadarHUD: React.FC<TacticalRadarHUDProps> = ({
         </div>
 
         {/* Tactical Filter Chips Strip */}
-        <div className="flex items-center justify-between bg-polar-850 p-2 rounded-lg border border-polar-700 text-xs">
-          <div className="flex items-center space-x-1.5 overflow-x-auto">
-            <span className="text-[10px] text-slate-400 uppercase font-bold mr-1 flex items-center space-x-1">
-              <Filter className="w-3 h-3" />
+        <div className="flex items-center justify-between glass-panel p-2.5 rounded-xl border border-white/10 text-xs">
+          <div className="flex items-center space-x-2 overflow-x-auto">
+            <span className="text-[10px] text-slate-400 uppercase font-bold mr-1 flex items-center space-x-1.5">
+              <Filter className="w-3.5 h-3.5 text-sky-400" />
               <span>RADAR SCAN FILTERS:</span>
             </span>
             {[
@@ -565,10 +557,10 @@ export const TacticalRadarHUD: React.FC<TacticalRadarHUDProps> = ({
                   setFilterType(f.id as any);
                   bridgeAudio.playTacticalClick();
                 }}
-                className={'px-2.5 py-1 rounded text-[10px] font-bold transition ' + (
+                className={'px-3 py-1 rounded-lg text-[10px] font-bold transition shadow-sm ' + (
                   filterType === f.id
-                    ? 'bg-sky-600 text-white shadow'
-                    : 'bg-polar-900 text-slate-400 hover:text-white border border-polar-700'
+                    ? 'bg-gradient-to-r from-sky-600 to-cyan-500 text-white shadow'
+                    : 'glass-card text-slate-400 hover:text-white'
                 )}
               >
                 {f.label}
@@ -582,7 +574,7 @@ export const TacticalRadarHUD: React.FC<TacticalRadarHUDProps> = ({
               <button
                 key={rng}
                 onClick={() => setGuardRingNm(rng)}
-                className={'px-1.5 py-0.5 rounded ' + (guardRingNm === rng ? 'bg-red-900 text-red-100 font-bold' : 'bg-polar-900 text-slate-400 border border-polar-700')}
+                className={'px-2 py-0.5 rounded-md font-bold transition ' + (guardRingNm === rng ? 'bg-red-900 text-red-100' : 'bg-polar-950 text-slate-400 border border-white/5')}
               >
                 {rng} NM
               </button>
@@ -590,16 +582,16 @@ export const TacticalRadarHUD: React.FC<TacticalRadarHUDProps> = ({
           </div>
         </div>
 
-        {/* Main Grid: Radar Canvas + Target Inspector */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
+        {/* Main Grid: Radar Scope + Selected Target Details */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
           
           {/* Radar PPI Canvas Viewport */}
-          <div className="lg:col-span-8 bg-polar-850 border border-polar-700 rounded-lg p-3 flex flex-col items-center justify-between shadow-2xl relative">
-            <div className="w-full flex items-center justify-between text-xs text-slate-300 mb-2 border-b border-polar-700/60 pb-1.5">
-              <div className="flex items-center space-x-3 text-[11px]">
+          <div className="lg:col-span-8 glass-panel rounded-2xl p-4 flex flex-col items-center justify-between shadow-2xl relative border border-white/10">
+            <div className="w-full flex items-center justify-between text-xs text-slate-300 mb-2 border-b border-white/10 pb-2">
+              <div className="flex items-center space-x-3.5 text-[11px]">
                 <span>RANGE: <strong className="text-emerald-400">{radarRangeNm} NM</strong></span>
                 <span>RINGS: <strong className="text-emerald-400">{(radarRangeNm / 4).toFixed(1)} NM</strong></span>
-                <span>BEAM SWEEP: <strong className="text-emerald-400">{sweepAngleDeg.toFixed(0)}°</strong></span>
+                <span>SWEEP BEAM: <strong className="text-emerald-400">{sweepAngleDeg.toFixed(0)}°</strong></span>
               </div>
               <div className="flex items-center space-x-1">
                 {[6, 12, 24, 48, 96].map((rng) => (
@@ -609,7 +601,7 @@ export const TacticalRadarHUD: React.FC<TacticalRadarHUDProps> = ({
                       setRadarRangeNm(rng);
                       bridgeAudio.playTacticalClick();
                     }}
-                    className={'px-2 py-0.5 rounded text-[10px] font-bold ' + (radarRangeNm === rng ? 'bg-emerald-600 text-white' : 'bg-polar-900 text-slate-400 border border-polar-700')}
+                    className={'px-2.5 py-0.5 rounded-md text-[10px] font-bold transition ' + (radarRangeNm === rng ? 'bg-emerald-600 text-white shadow-sm' : 'glass-card text-slate-400')}
                   >
                     {rng} NM
                   </button>
@@ -624,35 +616,35 @@ export const TacticalRadarHUD: React.FC<TacticalRadarHUDProps> = ({
                 width={530}
                 height={490}
                 onClick={handleCanvasClick}
-                className="rounded-full border-2 border-emerald-600/60 shadow-2xl shadow-emerald-950/80 max-w-full"
+                className="rounded-full border-2 border-emerald-500/70 shadow-2xl shadow-emerald-950/90 max-w-full"
               />
             </div>
 
-            <div className="w-full flex items-center justify-between text-[10px] text-slate-400 mt-2 border-t border-polar-700/60 pt-1.5">
-              <span>SEA CLUTTER (STC): AUTO OPTIMIZED</span>
-              <span>RAIN CLUTTER (FTC): 18%</span>
-              <span>TARGET ACQUISITION: AUTOMATIC ARPA (30 TRACKS)</span>
+            <div className="w-full flex items-center justify-between text-[10px] text-slate-400 mt-3 border-t border-white/10 pt-2 font-mono">
+              <span>SEA CLUTTER: AUTO STC</span>
+              <span>RAIN CLUTTER: FTC 18%</span>
+              <span>ARPA MULTI-TARGET TRACKING ACTIVE</span>
             </div>
           </div>
 
           {/* Right Column: Selected Target Data Card & ARPA Matrix */}
-          <div className="lg:col-span-4 space-y-3 flex flex-col justify-between">
+          <div className="lg:col-span-4 space-y-3.5 flex flex-col justify-between">
             
             {/* Selected Target Deep Inspector Box */}
             {selectedTarget && (
-              <div className={'p-3 rounded-lg border shadow-lg space-y-2 ' + (
+              <div className={'p-3.5 rounded-xl border shadow-xl space-y-2.5 ' + (
                 selectedTarget.threat_level === 'DANGER'
-                  ? 'bg-red-950/80 border-red-500 text-red-200'
+                  ? 'bg-red-950/80 border-red-500/80 text-red-200 ring-1 ring-red-500/30'
                   : selectedTarget.threat_level === 'SAFE'
-                  ? 'bg-emerald-950/80 border-emerald-500 text-emerald-200'
-                  : 'bg-amber-950/80 border-amber-500 text-amber-200'
+                  ? 'bg-emerald-950/80 border-emerald-500/80 text-emerald-200 ring-1 ring-emerald-500/30'
+                  : 'bg-amber-950/80 border-amber-500/80 text-amber-200 ring-1 ring-amber-500/30'
               )}>
-                <div className="flex items-center justify-between border-b border-polar-700/60 pb-1.5">
-                  <div className="flex items-center space-x-1.5">
+                <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                  <div className="flex items-center space-x-2">
                     {selectedTarget.type === 'SHIP' ? <Ship className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    <span className="font-bold text-xs text-white truncate max-w-[170px]">{selectedTarget.name}</span>
+                    <span className="font-extrabold text-xs text-white truncate max-w-[170px]">{selectedTarget.name}</span>
                   </div>
-                  <span className={'px-1.5 py-0.2 rounded text-[9px] font-bold border ' + (
+                  <span className={'px-2 py-0.5 rounded-md text-[9px] font-bold border ' + (
                     selectedTarget.threat_level === 'DANGER' ? 'bg-red-900 border-red-400 text-red-100' :
                     selectedTarget.threat_level === 'SAFE' ? 'bg-emerald-900 border-emerald-400 text-emerald-100' :
                     'bg-amber-900 border-amber-400 text-amber-100'
@@ -661,41 +653,44 @@ export const TacticalRadarHUD: React.FC<TacticalRadarHUDProps> = ({
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-1.5 text-[10px]">
-                  <div className="bg-black/30 p-1.5 rounded">
+                <div className="grid grid-cols-2 gap-2 text-[10px]">
+                  <div className="bg-black/40 p-2 rounded-lg border border-white/5">
                     <span className="text-slate-400 block text-[9px]">RANGE / BEARING</span>
-                    <span className="font-bold text-white">{selectedTarget.distance_nm.toFixed(1)} NM @ {selectedTarget.bearing_deg.toFixed(0)}°</span>
+                    <span className="font-bold text-white text-xs">{selectedTarget.distance_nm.toFixed(1)} NM @ {selectedTarget.bearing_deg.toFixed(0)}°</span>
                   </div>
-                  <div className="bg-black/30 p-1.5 rounded">
+                  <div className="bg-black/40 p-2 rounded-lg border border-white/5">
                     <span className="text-slate-400 block text-[9px]">SOG / COG</span>
-                    <span className="font-bold text-white">{selectedTarget.speed_kts.toFixed(1)} kn @ {selectedTarget.heading_deg.toFixed(0)}°</span>
+                    <span className="font-bold text-white text-xs">{selectedTarget.speed_kts.toFixed(1)} kn @ {selectedTarget.heading_deg.toFixed(0)}°</span>
                   </div>
-                  <div className="bg-black/30 p-1.5 rounded">
+                  <div className="bg-black/40 p-2 rounded-lg border border-white/5">
                     <span className="text-slate-400 block text-[9px]">DISTANCE TO CPA (DCPA)</span>
-                    <span className={'font-bold ' + (selectedTarget.dcpa_nm < 2.0 ? 'text-red-400' : 'text-emerald-400')}>
+                    <span className={'font-bold text-xs ' + (selectedTarget.dcpa_nm < 2.0 ? 'text-red-400' : 'text-emerald-400')}>
                       {selectedTarget.dcpa_nm.toFixed(1)} NM
                     </span>
                   </div>
-                  <div className="bg-black/30 p-1.5 rounded">
+                  <div className="bg-black/40 p-2 rounded-lg border border-white/5">
                     <span className="text-slate-400 block text-[9px]">TIME TO CPA (TCPA)</span>
-                    <span className="font-bold text-white">{selectedTarget.tcpa_min.toFixed(0)} min</span>
+                    <span className="font-bold text-white text-xs">{selectedTarget.tcpa_min.toFixed(0)} min</span>
                   </div>
                 </div>
 
-                <p className="text-[10px] text-slate-300 italic pt-0.5">
+                <p className="text-[10px] text-slate-300 italic pt-1">
                   {selectedTarget.details}
                 </p>
               </div>
             )}
 
             {/* ARPA Scanned Contacts List */}
-            <div className="bg-polar-850 border border-polar-700 rounded-lg p-3 flex-1 flex flex-col justify-between">
-              <div className="flex items-center justify-between border-b border-polar-700 pb-1.5 mb-2">
-                <span className="font-bold text-xs text-slate-200">SCANNED CONTACTS MATRIX ({filteredTargets.length})</span>
-                <span className="text-[10px] text-emerald-400 font-mono">TRACKING ACTIVE</span>
+            <div className="glass-panel rounded-2xl p-3.5 flex-1 flex flex-col justify-between border border-white/10 shadow-2xl">
+              <div className="flex items-center justify-between border-b border-white/10 pb-2 mb-2.5">
+                <span className="font-bold text-xs text-white">SCANNED CONTACTS MATRIX ({filteredTargets.length})</span>
+                <span className="text-[10px] text-emerald-400 font-mono flex items-center space-x-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>ARPA TRACKING</span>
+                </span>
               </div>
 
-              <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+              <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
                 {filteredTargets.map((t) => {
                   const isSel = t.id === selectedTargetId;
                   const isCrit = t.threat_level === 'DANGER';
@@ -708,15 +703,15 @@ export const TacticalRadarHUD: React.FC<TacticalRadarHUDProps> = ({
                         setSelectedTargetId(t.id);
                         bridgeAudio.playTacticalClick();
                       }}
-                      className={'p-2 rounded border cursor-pointer transition text-xs ' + (
-                        isSel ? 'bg-sky-950 border-sky-400 text-white shadow' :
-                        isCrit ? 'bg-red-950/50 border-red-600/70 text-red-200 hover:bg-red-900/60' :
-                        isSafe ? 'bg-emerald-950/40 border-emerald-600/50 text-emerald-200 hover:bg-emerald-900/50' :
-                        'bg-polar-900 border-polar-700 text-slate-300 hover:bg-polar-800'
+                      className={'p-2.5 rounded-xl border cursor-pointer transition-all text-xs ' + (
+                        isSel ? 'bg-sky-950 border-sky-400 text-white shadow-md ring-1 ring-sky-400/40' :
+                        isCrit ? 'bg-red-950/40 border-red-600/60 text-red-200 hover:bg-red-900/50' :
+                        isSafe ? 'bg-emerald-950/30 border-emerald-600/40 text-emerald-200 hover:bg-emerald-900/40' :
+                        'glass-card text-slate-300'
                       )}
                     >
                       <div className="flex justify-between items-center font-bold">
-                        <span className="flex items-center space-x-1.5">
+                        <span className="flex items-center space-x-2">
                           <span className={'w-2 h-2 rounded-full ' + (isCrit ? 'bg-red-500 animate-pulse' : isSafe ? 'bg-emerald-400' : 'bg-amber-400')} />
                           <span className="text-white truncate max-w-[140px]">{t.name}</span>
                         </span>
@@ -733,7 +728,7 @@ export const TacticalRadarHUD: React.FC<TacticalRadarHUDProps> = ({
                 })}
               </div>
 
-              <div className="bg-polar-900 p-2 rounded border border-polar-700 text-[10px] text-slate-400 mt-2">
+              <div className="bg-polar-950/80 p-2.5 rounded-xl border border-white/5 text-[10px] text-slate-400 mt-2.5">
                 <span className="font-bold text-slate-200 block mb-0.5">IMO RADAR PROTOCOL:</span>
                 <span>Guard ring set at {guardRingNm} NM radius. Red echoes represent collision or extreme drift hazards.</span>
               </div>
