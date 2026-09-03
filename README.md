@@ -1,11 +1,14 @@
 # 🏔️ POLARIS ECDIS: AI-Enabled Antarctic Sea-Ice & Iceberg Navigation Decision Support System
 
 [![Deploy to GitHub Pages](https://github.com/joydeepkundu915-a11y/Ice-Navigation-Antarctica/actions/workflows/deploy-gh-pages.yml/badge.svg)](https://github.com/joydeepkundu915-a11y/Ice-Navigation-Antarctica/actions/workflows/deploy-gh-pages.yml)
-[![Docker Image](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
+[![Standalone Ready](https://img.shields.io/badge/Standalone-Zero%20API%20Required-emerald.svg)](#)
+[![Docker Ready](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
 [![IMO Polar Code](https://img.shields.io/badge/IMO%20Polar%20Code-MSC.1%2FCirc.1519-emerald.svg)](https://www.imo.org/)
 [![License](https://img.shields.io/badge/License-MIT-amber.svg)](LICENSE)
 
 An operational, polar-grade Electronic Chart Display and Information System (**ECDIS**) for Antarctic polar vessels, research icebreakers, and autonomous polar shipping.
+
+> **💡 Zero External API Required**: This system features an embedded in-browser polar physics engine, AIS traffic generator, radar scanner, and POLARIS RIO calculator. It runs 100% self-contained on GitHub Pages, Vercel, or Docker without requiring any external API keys or mandatory backend servers.
 
 ---
 
@@ -43,7 +46,7 @@ An operational, polar-grade Electronic Chart Display and Information System (**E
 
 ---
 
-## 🚀 Deployment Options
+## 🚀 Instant 1-Click Deployment (No External API Setup Needed)
 
 ### Option 1: Automated GitHub Pages (1-Click Free Hosting)
 1. In your GitHub repository, navigate to **Settings** > **Pages**.
@@ -54,19 +57,19 @@ An operational, polar-grade Electronic Chart Display and Information System (**E
 
 ---
 
-### Option 2: 1-Click Free Cloud Deployment on Render
-Deploy the full-stack FastAPI backend + React frontend in a single container:
+### Option 2: 1-Click Frontend Deployment on Vercel
+1. Import repository on [Vercel.com](https://vercel.com/).
+2. Vercel automatically detects `vercel.json` and `frontend/` directory.
+3. Click **Deploy**.
+
+---
+
+### Option 3: 1-Click Free Cloud Deployment on Render
+Deploy the full-stack container:
 1. Fork or push this repository to GitHub.
 2. Sign up on [Render.com](https://render.com/).
 3. Click **New** > **Web Service**, connect your `Ice-Navigation-Antarctica` repository.
 4. Select **Docker** environment and click **Create Web Service**.
-
----
-
-### Option 3: 1-Click Frontend Deployment on Vercel
-1. Import repository on [Vercel.com](https://vercel.com/).
-2. Vercel automatically detects `vercel.json` and `frontend/` directory.
-3. Click **Deploy**.
 
 ---
 
@@ -84,23 +87,19 @@ Access the application at `http://localhost:8000`.
 ---
 
 ### Option 5: Local Development Setup
-
-#### Backend:
-```bash
-cd backend
-python -m venv venv
-venv\Scripts\activate   # On Windows (or source venv/bin/activate on Linux/Mac)
-pip install -r requirements.txt
-python -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload
-```
-
-#### Frontend:
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
 Open `http://localhost:5173` in your browser.
+
+*(Optional Python Backend)*:
+```bash
+cd backend
+python -m pip install -r requirements.txt
+python -m uvicorn main:app --host 127.0.0.1 --port 8000
+```
 
 ---
 

@@ -2,29 +2,33 @@ import React, { useState } from 'react';
 import { 
   AlertOctagon, 
   Radio, 
-  PhoneCall, 
+  MapPin, 
   ShieldAlert, 
-  LifeBuoy, 
+  Volume2, 
+  VolumeX, 
+  Clock, 
   Send, 
   CheckCircle2, 
   X, 
-  Flame, 
-  Ship, 
-  MapPin, 
-  Activity,
-  Award
+  Anchor, 
+  PhoneCall, 
+  LifeBuoy, 
+  Zap,
+  Users,
+  Compass
 } from 'lucide-react';
-import { VesselState, ShipUser, DistressSOSState, Station } from '../types';
+import { VesselState, Station, DistressSOSState, ShipUser } from '../types';
 import { bridgeAudio } from '../services/audioAlerts';
 
 interface EmergencySOSModalProps {
   isOpen: boolean;
   onClose: () => void;
   vessel: VesselState;
-  user: ShipUser | null;
+  user?: ShipUser | null;
   sosState: DistressSOSState;
   onTriggerSOS: (distressType: any, souls: number) => void;
   onCancelSOS: () => void;
+  stations?: Station[];
 }
 
 export const EmergencySOSModal: React.FC<EmergencySOSModalProps> = ({
@@ -34,186 +38,177 @@ export const EmergencySOSModal: React.FC<EmergencySOSModalProps> = ({
   user,
   sosState,
   onTriggerSOS,
-  onCancelSOS
+  onCancelSOS,
+  stations = []
 }) => {
-  const [selectedDistress, setSelectedDistress] = useState<any>('BESETMENT_SEVERE');
-  const [soulsCount, setSoulsCount] = useState<number>(54);
-  const [isTransmitting, setIsTransmitting] = useState<boolean>(false);
-
   if (!isOpen) return null;
 
-  const handleTransmit = () => {
-    setIsTransmitting(true);
-    bridgeAudio.playMaydayDistressAlert();
+  const [selectedDistress, setSelectedDistress] = useState<string>(sosState.distress_type || 'BESETMENT_SEVERE');
+  const [soulsOnBoard, setSoulsOnBoard] = useState<number>(sosState.souls_on_board || 48);
 
-    setTimeout(() => {
-      onTriggerSOS(selectedDistress, soulsCount);
-      setIsTransmitting(false);
-    }, 600);
+  const nearestSARStation = stations.find(s => s.id === 'rothera') || stations[0] || {
+    id: 'rothera',
+    name: 'Rothera Research Station SAR Hub',
+    lat: -67.57,
+    lon: -68.13
+  };
+
+  const handleTransmitDistress = () => {
+    bridgeAudio.playMaydayDistressAlert();
+    onTriggerSOS(selectedDistress, soulsOnBoard);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fade-in select-none">
-      <div className="bg-gradient-to-b from-red-950 via-polar-900 to-polar-950 border-2 border-red-600 rounded-xl shadow-2xl max-w-2xl w-full p-6 text-xs font-mono text-slate-200 space-y-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 font-mono select-none">
+      <div className="glass-panel border-2 border-red-500/80 rounded-2xl max-w-2xl w-full p-6 space-y-5 shadow-2xl shadow-red-950/80 relative overflow-hidden">
+        
+        {/* Luminous Red Danger Background Halo */}
+        <div className="absolute -top-24 -right-24 w-64 h-64 bg-red-600/20 rounded-full blur-3xl pointer-events-none animate-pulse" />
+
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-red-700/80 pb-3">
+        <div className="flex items-center justify-between border-b border-white/10 pb-4">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-lg bg-red-600 flex items-center justify-center text-white shadow-lg animate-pulse">
+            <div className="w-10 h-10 rounded-xl bg-red-950/90 border border-red-500 flex items-center justify-center text-red-400 animate-pulse shadow-lg">
               <AlertOctagon className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-base font-extrabold text-white tracking-wider flex items-center space-x-2">
-                <span>GMDSS POLAR DISTRESS TRANSCEIVER</span>
-                <span className="px-1.5 py-0.2 rounded bg-red-800 text-white text-[10px] font-bold">
-                  MAYDAY 406 MHz
+              <h2 className="text-base font-black tracking-wider text-red-100 flex items-center space-x-2">
+                <span>GMDSS POLAR DISTRESS MAYDAY TRANSCEIVER</span>
+                <span className="px-2 py-0.5 rounded-full text-[9px] bg-red-950 text-red-300 border border-red-500 animate-pulse">
+                  COSPAS-SARSAT 406 MHz
                 </span>
               </h2>
-              <p className="text-[10px] text-red-300">
-                COSPAS-SARSAT • Inmarsat-C DSC • VHF Ch 16 / 2187.5 kHz Emergency Network
+              <p className="text-[11px] text-slate-400">
+                IMO Polar Code Chapter 12 Emergency SAR Radio Broadcast
               </p>
             </div>
           </div>
 
           <button
-            onClick={onClose}
-            className="p-1 rounded hover:bg-red-900/60 text-red-300 hover:text-white"
+            onClick={() => {
+              onClose();
+              bridgeAudio.playTacticalClick();
+            }}
+            className="p-1.5 rounded-lg glass-card hover:bg-red-950/60 text-slate-400 hover:text-white"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* SOS Active Alert Banner */}
-        {sosState.active ? (
-          <div className="bg-red-900/90 border border-red-500 rounded-lg p-4 space-y-3 animate-pulse shadow-lg">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Radio className="w-5 h-5 text-white animate-spin-slow" />
-                <span className="font-extrabold text-white text-sm">
-                  MAYDAY MAYDAY MAYDAY — DISTRESS BEACON ACTIVE
-                </span>
-              </div>
-              <span className="text-[10px] bg-red-950 px-2 py-0.5 rounded text-white font-bold">
-                EPIRB ACTIVE
+        {/* Active Distress Banner if broadcasting */}
+        {sosState.active && (
+          <div className="bg-red-950/90 border-2 border-red-500 rounded-xl p-4 flex items-center justify-between animate-pulse">
+            <div className="space-y-1">
+              <span className="text-xs font-black text-red-100 tracking-wider flex items-center space-x-2">
+                <Radio className="w-4 h-4 text-red-400 animate-spin-slow" />
+                <span>🚨 MAYDAY BROADCAST TRANSMITTING (VHF CH 16 / DSC 2187.5 kHz)</span>
               </span>
+              <p className="text-[11px] text-red-200">
+                SAR Station: <strong className="text-white">{sosState.sar_station_notified}</strong> ({sosState.sar_distance_nm} NM away • ETA {sosState.estimated_sar_eta_hrs} hrs)
+              </p>
             </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[11px] bg-black/40 p-2.5 rounded border border-red-700">
-              <div>
-                <span className="text-red-300 text-[9px] block">NATURE</span>
-                <span className="font-bold text-white">{sosState.distress_type.replace('_', ' ')}</span>
-              </div>
-              <div>
-                <span className="text-red-300 text-[9px] block">POB (SOULS)</span>
-                <span className="font-bold text-white">{sosState.souls_on_board}</span>
-              </div>
-              <div>
-                <span className="text-red-300 text-[9px] block">SAR STATION</span>
-                <span className="font-bold text-white">{sosState.sar_station_notified}</span>
-              </div>
-              <div>
-                <span className="text-red-300 text-[9px] block">ESTIMATED ETA</span>
-                <span className="font-bold text-yellow-300">~{sosState.estimated_sar_eta_hrs} Hours</span>
-              </div>
-            </div>
-
-            <p className="text-[11px] text-red-200">
-              Distress broadcast coordinates: <strong>{Math.abs(vessel.lat).toFixed(2)}°S, {Math.abs(vessel.lon).toFixed(2)}°W</strong>. Standing by on VHF Ch 16 (156.8 MHz).
-            </p>
 
             <button
               onClick={() => {
                 onCancelSOS();
                 bridgeAudio.playTacticalClick();
               }}
-              className="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-2 rounded text-xs border border-slate-600 transition"
+              className="bg-polar-900 hover:bg-polar-800 border border-white/20 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition"
             >
-              CANCEL DISTRESS / STAND-DOWN RESCUE
-            </button>
-          </div>
-        ) : (
-          /* Distress Transmission Form */
-          <div className="space-y-3">
-            {/* Distress Nature Options */}
-            <div>
-              <label className="text-xs font-bold text-red-300 uppercase tracking-wider block mb-1.5">
-                1. Select Nature of Polar Distress
-              </label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {[
-                  { id: 'BESETMENT_SEVERE', label: 'Severe Ice Besetment & Converging Pack', desc: 'Vessel trapped in high ice pressure, drift towards shallow ridges' },
-                  { id: 'ICEBERG_COLLISION', label: 'Iceberg / Growler Hull Impact', desc: 'Impact with submerged glacial ice, hull integrity compromised' },
-                  { id: 'HULL_BREACH', label: 'Hull Ingress & Flooding', desc: 'Water ingress in forward hold/void spaces' },
-                  { id: 'ENGINE_FAILURE', label: 'Main Propulsion Blackout', desc: 'Total engine breakdown in heavy sea-ice fields' },
-                  { id: 'MEDICAL_EMERGENCY', label: 'Critical Casualty / Medevac', desc: 'Immediate aeromedical rescue required' }
-                ].map((d) => (
-                  <button
-                    key={d.id}
-                    type="button"
-                    onClick={() => setSelectedDistress(d.id)}
-                    className={'p-2.5 rounded border text-left transition ' + (
-                      selectedDistress === d.id
-                        ? 'bg-red-900/80 border-red-400 text-white font-bold shadow'
-                        : 'bg-polar-900/80 border-polar-700 text-slate-400 hover:bg-polar-800 hover:text-slate-200'
-                    )}
-                  >
-                    <span className="block text-xs">{d.label}</span>
-                    <span className="text-[10px] text-slate-400 font-normal">{d.desc}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Souls on Board */}
-            <div className="bg-polar-900/80 p-3 rounded border border-polar-700 flex items-center justify-between">
-              <div>
-                <span className="font-bold text-slate-200 block text-xs">SOULS ON BOARD (POB)</span>
-                <span className="text-[10px] text-slate-400">Crew, ice pilots, scientific researchers</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="number"
-                  min="1"
-                  max="500"
-                  value={soulsCount}
-                  onChange={(e) => setSoulsCount(Number(e.target.value))}
-                  className="w-20 bg-polar-800 border border-polar-600 rounded px-2 py-1 text-center font-bold text-white text-xs"
-                />
-              </div>
-            </div>
-
-            {/* Own Ship Telemetry Snapshot */}
-            <div className="bg-polar-900/80 p-3 rounded border border-polar-700 text-[11px] grid grid-cols-3 gap-2">
-              <div>
-                <span className="text-slate-400 block text-[9px]">VESSEL / CLASS</span>
-                <span className="font-bold text-white">{vessel.name} ({vessel.polar_class})</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block text-[9px]">POSITION</span>
-                <span className="font-bold text-white">{Math.abs(vessel.lat).toFixed(2)}°S, {Math.abs(vessel.lon).toFixed(2)}°W</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block text-[9px]">MASTER IN CHARGE</span>
-                <span className="font-bold text-white">{user?.full_name || 'Capt. Erik Lindqvist'}</span>
-              </div>
-            </div>
-
-            {/* Transmit Button */}
-            <button
-              onClick={handleTransmit}
-              disabled={isTransmitting}
-              className="w-full bg-gradient-to-r from-red-600 via-red-500 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-extrabold py-3 rounded-lg text-sm shadow-xl shadow-red-950 flex items-center justify-center space-x-2 transition transform active:scale-95 disabled:opacity-50"
-            >
-              {isTransmitting ? (
-                <span>TRANSMITTING 406 MHz COSPAS-SARSAT BEACON...</span>
-              ) : (
-                <>
-                  <AlertOctagon className="w-5 h-5 animate-pulse" />
-                  <span>TRANSMIT GMDSS MAYDAY DISTRESS BEACON</span>
-                </>
-              )}
+              CANCEL DISTRESS
             </button>
           </div>
         )}
+
+        {/* Position & Identity Strip */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+          <div className="bg-polar-950/80 p-2.5 rounded-xl border border-white/5">
+            <span className="text-slate-400 text-[9px] block">VESSEL NAME / IMO</span>
+            <strong className="text-white text-[11px]">{vessel.name}</strong>
+          </div>
+          <div className="bg-polar-950/80 p-2.5 rounded-xl border border-white/5">
+            <span className="text-slate-400 text-[9px] block">LAT / LON (WGS-84)</span>
+            <strong className="text-amber-300 text-[11px]">{Math.abs(vessel.lat).toFixed(3)}°S, {Math.abs(vessel.lon).toFixed(3)}°W</strong>
+          </div>
+          <div className="bg-polar-950/80 p-2.5 rounded-xl border border-white/5">
+            <span className="text-slate-400 text-[9px] block">SOG / GYRO HDG</span>
+            <strong className="text-sky-300 text-[11px]">{vessel.speed_kts.toFixed(1)} kn @ {vessel.heading_deg.toFixed(0)}°</strong>
+          </div>
+          <div className="bg-polar-950/80 p-2.5 rounded-xl border border-white/5">
+            <span className="text-slate-400 text-[9px] block">NEAREST SAR HUB</span>
+            <strong className="text-emerald-400 text-[11px]">{nearestSARStation.name.split(' ')[0]} Base</strong>
+          </div>
+        </div>
+
+        {/* Nature of Distress Selection */}
+        <div className="space-y-2">
+          <label className="text-xs font-bold text-slate-300 flex items-center space-x-1.5">
+            <ShieldAlert className="w-3.5 h-3.5 text-red-400" />
+            <span>NATURE OF POLAR DISTRESS (IMO RES A.1051)</span>
+          </label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            {[
+              { id: 'BESETMENT_SEVERE', label: 'Severe Ice Besetment & Converging Pack', desc: 'Vessel trapped in high ice pressure, drift towards shallow ridges' },
+              { id: 'ICEBERG_COLLISION', label: 'Iceberg / Growler Hull Impact', desc: 'Impact with submerged glacial ice, hull integrity compromised' },
+              { id: 'HULL_BREACH', label: 'Hull Ingress & Flooding', desc: 'Water ingress in forward hold/void spaces' },
+              { id: 'ENGINE_FAILURE', label: 'Main Propulsion Blackout', desc: 'Total engine breakdown in heavy sea-ice fields' },
+              { id: 'MEDICAL_EMERGENCY', label: 'Critical Casualty / Medevac', desc: 'Immediate aeromedical evacuation dispatch' }
+            ].map((d) => (
+              <button
+                key={d.id}
+                type="button"
+                onClick={() => setSelectedDistress(d.id)}
+                className={'p-2.5 rounded-xl border text-left transition ' + (
+                  selectedDistress === d.id
+                    ? 'bg-red-950/90 border-red-500 text-white font-bold shadow-md shadow-red-950/60'
+                    : 'glass-card text-slate-400 hover:text-slate-200'
+                )}
+              >
+                <span className="block text-xs text-white">{d.label}</span>
+                <span className="text-[10px] text-slate-400 font-normal">{d.desc}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Souls on Board Counter */}
+        <div className="flex items-center justify-between bg-polar-950/80 p-3 rounded-xl border border-white/5 text-xs">
+          <span className="text-slate-300 flex items-center space-x-2">
+            <Users className="w-4 h-4 text-sky-400" />
+            <span>SOULS ON BOARD (POB / PASSENGERS & CREW):</span>
+          </span>
+          <div className="flex items-center space-x-2">
+            <input
+              type="number"
+              min="1"
+              max="500"
+              value={soulsOnBoard}
+              onChange={(e) => setSoulsOnBoard(Number(e.target.value))}
+              className="w-16 bg-polar-900 border border-polar-600 rounded-lg px-2 py-1 text-center font-bold text-white text-xs"
+            />
+            <span className="text-slate-400 text-[10px]">PERSONS</span>
+          </div>
+        </div>
+
+        {/* Transmit Action Buttons */}
+        <div className="flex items-center justify-end space-x-3 pt-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 rounded-xl glass-card hover:bg-polar-800 text-slate-300 text-xs transition"
+          >
+            STAND DOWN
+          </button>
+
+          <button
+            type="button"
+            onClick={handleTransmitDistress}
+            className="bg-gradient-to-r from-red-700 via-red-600 to-rose-600 hover:from-red-600 hover:to-rose-500 text-white font-black px-6 py-2.5 rounded-xl text-xs flex items-center space-x-2 shadow-xl shadow-red-950/80 border border-red-400 transition active:scale-95"
+          >
+            <Radio className="w-4 h-4 animate-pulse" />
+            <span>TRANSMIT MAYDAY DISTRESS BEACON</span>
+          </button>
+        </div>
       </div>
     </div>
   );
