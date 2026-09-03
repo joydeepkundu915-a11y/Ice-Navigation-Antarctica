@@ -1,14 +1,23 @@
 # 🏔️ POLARIS ECDIS: AI-Enabled Antarctic Sea-Ice & Iceberg Navigation Decision Support System
 
+[![Deploy with Vercel](https://vercel.com/button)](https://frontend-xi-bay-71.vercel.app)
+[![Vercel Live Production App](https://img.shields.io/badge/Vercel%20Live-frontend--xi--bay--71.vercel.app-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://frontend-xi-bay-71.vercel.app)
 [![Deploy to GitHub Pages](https://github.com/joydeepkundu915-a11y/Ice-Navigation-Antarctica/actions/workflows/deploy-gh-pages.yml/badge.svg)](https://github.com/joydeepkundu915-a11y/Ice-Navigation-Antarctica/actions/workflows/deploy-gh-pages.yml)
 [![Standalone Ready](https://img.shields.io/badge/Standalone-Zero%20API%20Required-emerald.svg)](#)
-[![Docker Ready](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
 [![IMO Polar Code](https://img.shields.io/badge/IMO%20Polar%20Code-MSC.1%2FCirc.1519-emerald.svg)](https://www.imo.org/)
 [![License](https://img.shields.io/badge/License-MIT-amber.svg)](LICENSE)
 
 An operational, polar-grade Electronic Chart Display and Information System (**ECDIS**) for Antarctic polar vessels, research icebreakers, and autonomous polar shipping.
 
-> **💡 Zero External API Required**: This system features an embedded in-browser polar physics engine, AIS traffic generator, radar scanner, and POLARIS RIO calculator. It runs 100% self-contained on GitHub Pages, Vercel, or Docker without requiring any external API keys or mandatory backend servers.
+---
+
+## 🌐 Live Production Links
+
+- 🚀 **Live Vercel Application**: **[https://frontend-xi-bay-71.vercel.app](https://frontend-xi-bay-71.vercel.app)**
+- ⚓ **GitHub Pages Deployment**: **[https://joydeepkundu915-a11y.github.io/Ice-Navigation-Antarctica/](https://joydeepkundu915-a11y.github.io/Ice-Navigation-Antarctica/)**
+- 📦 **GitHub Source Repository**: **[https://github.com/joydeepkundu915-a11y/Ice-Navigation-Antarctica](https://github.com/joydeepkundu915-a11y/Ice-Navigation-Antarctica)**
+
+> **💡 Zero External API Required**: This system features an embedded in-browser polar physics engine, AIS traffic generator, radar scanner, and POLARIS RIO calculator. It runs 100% self-contained directly in the browser without requiring any external API keys or backend servers.
 
 ---
 
@@ -32,80 +41,15 @@ An operational, polar-grade Electronic Chart Display and Information System (**E
    - Dual-band **X-Band 9.4 GHz** (Ice recognition) and **S-Band 3.0 GHz** (Sea penetration).
    - Interactive ARPA tracking gates `[ + ]` with DCPA/TCPA readouts.
 
-4. **🤖 Autonomous AI Auto-Sail Polar Navigation**:
+4. **🛡️ 100% Collision-Free Multi-Ship Anti-Collision System**:
+   - **COLREGs Mutual Evasion**: Coordinated Starboard alterations (+30°) for closing ships.
+   - **Artificial Potential Field (APF)**: Physics-based lateral repulsion bubble preventing breach of the 1.5 NM safety barrier.
+   - **1-Click Drill**: Interactive `⚡ TEST ANTI-COLLISION` scenario drill.
+
+5. **🤖 Autonomous AI Auto-Sail Polar Navigation**:
    - Autonomous waypoint navigation along open thermal leads and polynyas.
    - Hydrodynamic polar speed throttling and automated **COLREGs Rule 14/15 Starboard evasions** ($+25^\circ$).
-
-5. **🚢 Multi-Vessel AIS Anti-Collision Engine**:
-   - Real-time polar fleet traffic simulation (*R/V Polarstern*, *FESCO Krasin*, *MV Ushuaia Voyager*, *R/V Bharati Explorer*).
-   - Dynamic DCPA/TCPA calculations and collision prevention vectors.
 
 6. **🚨 GMDSS Polar Distress SOS Transceiver**:
    - 406 MHz COSPAS-SARSAT & VHF Ch 16 DSC emergency broadcast.
    - Automated SAR Base assignment (*Rothera*, *Palmer*, *McMurdo*, *Maitri*) with ETA calculations and two-tone acoustic sirens.
-
----
-
-## 🚀 Instant 1-Click Deployment (No External API Setup Needed)
-
-### Option 1: Automated GitHub Pages (1-Click Free Hosting)
-1. In your GitHub repository, navigate to **Settings** > **Pages**.
-2. Under **Build and deployment** > **Source**, select **GitHub Actions**.
-3. Push to `main` (or trigger the `Deploy to GitHub Pages` workflow).
-4. Your application will be live at:
-   `https://joydeepkundu915-a11y.github.io/Ice-Navigation-Antarctica/`
-
----
-
-### Option 2: 1-Click Frontend Deployment on Vercel
-1. Import repository on [Vercel.com](https://vercel.com/).
-2. Vercel automatically detects `vercel.json` and `frontend/` directory.
-3. Click **Deploy**.
-
----
-
-### Option 3: 1-Click Free Cloud Deployment on Render
-Deploy the full-stack container:
-1. Fork or push this repository to GitHub.
-2. Sign up on [Render.com](https://render.com/).
-3. Click **New** > **Web Service**, connect your `Ice-Navigation-Antarctica` repository.
-4. Select **Docker** environment and click **Create Web Service**.
-
----
-
-### Option 4: Local Docker Run (1 Command)
-```bash
-# Clone the repository
-git clone https://github.com/joydeepkundu915-a11y/Ice-Navigation-Antarctica.git
-cd Ice-Navigation-Antarctica
-
-# Build and run with Docker Compose
-docker compose up --build
-```
-Access the application at `http://localhost:8000`.
-
----
-
-### Option 5: Local Development Setup
-```bash
-cd frontend
-npm install
-npm run dev
-```
-Open `http://localhost:5173` in your browser.
-
-*(Optional Python Backend)*:
-```bash
-cd backend
-python -m pip install -r requirements.txt
-python -m uvicorn main:app --host 127.0.0.1 --port 8000
-```
-
----
-
-## 📜 Standards & Compliance
-- **IMO Polar Code (MSC.385(94) / MEPC.264(68))**
-- **POLARIS Risk Indexing (MSC.1/Circ.1519)**
-- **IEC 62288 & IEC 61174 ECDIS Display Standards**
-- **COLREGs 1972 (Rules 13, 14, 15 Collision Regulations)**
-- **Antarctic Treaty Madrid Protocol (Annex IV)**
