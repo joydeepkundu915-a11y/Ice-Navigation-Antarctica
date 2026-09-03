@@ -13,7 +13,9 @@ import {
   Radio,
   Bot,
   Ship,
-  Sparkles
+  Sparkles,
+  ShieldAlert,
+  ShieldCheck
 } from 'lucide-react';
 import { VesselState, AutoSailState } from '../types';
 import { bridgeAudio } from '../services/audioAlerts';
@@ -26,6 +28,7 @@ interface SimulationControlsProps {
   vessel: VesselState;
   onTriggerStorm: () => void;
   onTriggerIceRidge: () => void;
+  onTriggerCollisionTest?: () => void;
   onResetSimulation: () => void;
   isHelmOpen: boolean;
   onToggleHelm: () => void;
@@ -41,6 +44,7 @@ export const SimulationControls: React.FC<SimulationControlsProps> = ({
   vessel,
   onTriggerStorm,
   onTriggerIceRidge,
+  onTriggerCollisionTest,
   onResetSimulation,
   isHelmOpen,
   onToggleHelm,
@@ -143,14 +147,29 @@ export const SimulationControls: React.FC<SimulationControlsProps> = ({
         </div>
       </div>
 
-      {/* Right: Metocean Injects & Conning Helm */}
+      {/* Right: Metocean Injects, Collision Test & Conning Helm */}
       <div className="flex items-center space-x-1.5">
+        {/* Instant Anti-Collision Simulation Test Button */}
+        {onTriggerCollisionTest && (
+          <button
+            onClick={() => {
+              onTriggerCollisionTest();
+              bridgeAudio.playWarningChime();
+            }}
+            className="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 border border-amber-400 text-white px-2.5 py-1 rounded-lg flex items-center space-x-1 transition text-[10px] font-bold active:scale-95 shadow-md shadow-amber-950/50"
+            title="Spawn Head-On Vessel to Test Automated COLREGs Anti-Collision Avoidance"
+          >
+            <ShieldAlert className="w-3 h-3 text-yellow-200 animate-pulse" />
+            <span>⚡ TEST ANTI-COLLISION</span>
+          </button>
+        )}
+
         <button
           onClick={() => {
             onTriggerStorm();
             bridgeAudio.playWarningChime();
           }}
-          className="bg-red-950/80 hover:bg-red-900 border border-red-600/70 text-red-200 px-2.5 py-1 rounded-lg flex items-center space-x-1 transition text-[10px] font-bold active:scale-95 shadow-sm"
+          className="bg-red-950/80 hover:bg-red-900 border border-red-600/70 text-red-200 px-2 py-1 rounded-lg flex items-center space-x-1 transition text-[10px] font-bold active:scale-95 shadow-sm"
           title="Inject Katabatic Force 10 Blizzard"
         >
           <Wind className="w-3 h-3 text-red-400" />
@@ -162,7 +181,7 @@ export const SimulationControls: React.FC<SimulationControlsProps> = ({
             onTriggerIceRidge();
             bridgeAudio.playWarningChime();
           }}
-          className="bg-purple-950/80 hover:bg-purple-900 border border-purple-600/70 text-purple-200 px-2.5 py-1 rounded-lg flex items-center space-x-1 transition text-[10px] font-bold active:scale-95 shadow-sm"
+          className="bg-purple-950/80 hover:bg-purple-900 border border-purple-600/70 text-purple-200 px-2 py-1 rounded-lg flex items-center space-x-1 transition text-[10px] font-bold active:scale-95 shadow-sm"
           title="Inject Consolidated Multi-Year Pressure Ridge"
         >
           <Zap className="w-3 h-3 text-purple-400" />
@@ -182,7 +201,7 @@ export const SimulationControls: React.FC<SimulationControlsProps> = ({
           }
         >
           <Sliders className="w-3 h-3 text-sky-400" />
-          <span>HELM CONSOLE</span>
+          <span>HELM</span>
         </button>
       </div>
     </div>

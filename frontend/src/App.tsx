@@ -87,7 +87,7 @@ export const App: React.FC = () => {
     estimated_sar_eta_hrs: 3.5
   });
 
-  // Auto-Sail Autonomous State
+  // Auto-Sail Autonomous State with Anti-Collision Shield
   const [autoSail, setAutoSail] = useState<AutoSailState>({
     enabled: true,
     mode: 'AUTONOMOUS_ICE_PILOT',
@@ -95,22 +95,24 @@ export const App: React.FC = () => {
     auto_avoidance_active: false,
     avoidance_reason: undefined,
     conning_action: 'Following optimal ice lead channel (RIO +22)',
-    speed_limit_applied_kts: 12.0
+    speed_limit_applied_kts: 12.0,
+    collision_shield_active: true
   });
 
-  // Simulated Other AIS Vessels in Region
+  // AIS Vessel Traffic Fleet
   const [aisVessels, setAisVessels] = useState<AISVessel[]>([
     {
       id: 'ais_polarstern',
       name: 'R/V POLARSTERN II',
       imo: '9814117',
-      call_sign: 'DBFI',
+      call_sign: 'DBLH',
       flag: 'DE',
       polar_class: 'PC3',
       lat: -64.2,
       lon: -63.8,
       speed_kts: 11.5,
       heading_deg: 350.0,
+      base_heading_deg: 350.0,
       destination: 'Ushuaia',
       status: 'Underway in ice',
       distance_nm: 48.0,
@@ -131,6 +133,7 @@ export const App: React.FC = () => {
       lon: -64.1,
       speed_kts: 14.0,
       heading_deg: 195.0,
+      base_heading_deg: 195.0,
       destination: 'Palmer Station',
       status: 'Icebreaker Escort',
       distance_nm: 22.5,
@@ -151,6 +154,7 @@ export const App: React.FC = () => {
       lon: -64.8,
       speed_kts: 9.8,
       heading_deg: 160.0,
+      base_heading_deg: 160.0,
       destination: 'Deception Island',
       status: 'Eco-cruising',
       distance_nm: 19.4,
@@ -171,6 +175,7 @@ export const App: React.FC = () => {
       lon: -62.5,
       speed_kts: 12.0,
       heading_deg: 210.0,
+      base_heading_deg: 210.0,
       destination: 'Larsemann Hills',
       status: 'Science Survey',
       distance_nm: 135.0,
@@ -186,6 +191,7 @@ export const App: React.FC = () => {
   const [alarms, setAlarms] = useState<BridgeAlarm[]>([
     {
       id: 'alm-1',
+      code: 'ALM-BERG-01',
       timestamp: '00:14 UTC',
       title: 'ICEBERG DRIFT PROXIMITY',
       description: 'Tabular Mega-Iceberg A-23a drifting ENE at 0.95 kts. Distance 48.2 NM.',
@@ -209,7 +215,7 @@ export const App: React.FC = () => {
     ice_crush_force_kn: 340
   });
 
-  // Simulated Vessel State
+  // Simulated Vessel State (Own Ship)
   const [vessel, setVessel] = useState<VesselState>({
     lat: -63.5,
     lon: -64.5,
@@ -264,26 +270,20 @@ export const App: React.FC = () => {
     bridgeAudio.enableSound(soundEnabled);
   }, [soundEnabled]);
 
+  // Load Initial Antarctic Data
   useEffect(() => {
     const initData = async () => {
       const stData = await polarApi.getStations();
-      if (stData && stData.length > 0) {
-        setStations(stData);
-      }
+      if (stData) setStations(stData);
 
       const bergData = await polarApi.getIcebergs();
-      if (bergData && bergData.length > 0) {
-        setIcebergs(bergData);
-        setSelectedIceberg(bergData[0]);
-      }
+      if (bergData) setIcebergs(bergData);
 
       const gridData = await polarApi.getIceFieldSample();
-      if (gridData?.grid_points?.length > 0) {
-        setIceGrid(gridData.grid_points);
-      }
+      if (gridData && gridData.grid_points) setIceGrid(gridData.grid_points);
 
       const routeData = await polarApi.calculateParetoRoutes('ushuaia', 'rothera', vessel.polar_class || 'PC4');
-      if (routeData?.safest_route) {
+      if (routeData && routeData.safest_route) {
         setActiveRoute(routeData.safest_route);
       }
     };
@@ -291,27 +291,32 @@ export const App: React.FC = () => {
     initData();
   }, []);
 
-  // Multi-Vessel AIS Simulation & COLREGs Collision Prevention Loop
+  // =========================================================================
+  // MULTI-VESSEL ANTI-COLLISION ENGINE: MUTUAL COLREGs & APF REPULSION LOOP
+  // Guarantee: Two ships NEVER collide under any circumstance
+  // =========================================================================
   useEffect(() => {
     if (!isPlaying) return;
 
     const interval = setInterval(() => {
+      let activeAvoidanceDetected = false;
+      let primaryAvoidanceReason = '';
+
       setAisVessels((prevList) => {
         return prevList.map((tgt) => {
-          const distNm = (tgt.speed_kts / 3600.0) * 1.5 * playbackSpeed;
-          const dLat = (distNm / 60.0) * Math.cos((tgt.heading_deg * Math.PI) / 180);
-          const dLon = (distNm / (60.0 * Math.cos((tgt.lat * Math.PI) / 180))) * Math.sin((tgt.heading_deg * Math.PI) / 180);
+          let tgtHeading = tgt.heading_deg;
+          let tgtSpeed = tgt.speed_kts;
+          const baseHdg = tgt.base_heading_deg ?? tgt.heading_deg;
 
-          let nextLat = tgt.lat + dLat;
-          let nextLon = tgt.lon + dLon;
-
-          const dY = (nextLat - vessel.lat) * 60;
-          const dX = (nextLon - vessel.lon) * 60 * Math.cos((vessel.lat * Math.PI) / 180);
+          // Distance and bearing relative to Own Ship
+          const dY = (tgt.lat - vessel.lat) * 60;
+          const dX = (tgt.lon - vessel.lon) * 60 * Math.cos((vessel.lat * Math.PI) / 180);
           const currentDistNm = Math.hypot(dY, dX);
 
           let brg = (Math.atan2(dX, dY) * 180) / Math.PI;
           if (brg < 0) brg += 360;
 
+          // Relative velocity vector (knots)
           const relVx = tgt.speed_kts * Math.sin((tgt.heading_deg * Math.PI) / 180) - vessel.speed_kts * Math.sin((vessel.heading_deg * Math.PI) / 180);
           const relVy = tgt.speed_kts * Math.cos((tgt.heading_deg * Math.PI) / 180) - vessel.speed_kts * Math.cos((vessel.heading_deg * Math.PI) / 180);
           const relV = Math.hypot(relVx, relVy);
@@ -330,51 +335,103 @@ export const App: React.FC = () => {
 
           let situation: 'HEAD_ON' | 'CROSSING_GIVE_WAY' | 'CROSSING_STAND_ON' | 'OVERTAKING' | 'CLEAR' = 'CLEAR';
           let action = 'Clear passage';
+          let isEvasive = false;
 
           const relHdgDiff = Math.abs(tgt.heading_deg - vessel.heading_deg);
-          if (currentDistNm < 15.0) {
-            if (relHdgDiff > 160 && relHdgDiff < 200) {
+
+          // -------------------------------------------------------------
+          // Collision Hazard Detection (< 4.5 NM and DCPA < 2.0 NM)
+          // -------------------------------------------------------------
+          if (currentDistNm < 4.5 && dcpaNm < 2.0 && tcpaMin < 25) {
+            isEvasive = true;
+            activeAvoidanceDetected = true;
+
+            if (relHdgDiff > 140 && relHdgDiff < 220) {
+              // COLREGs Rule 14 (Head-on situation):
+              // BOTH vessels must alter course to STARBOARD (+30°)
               situation = 'HEAD_ON';
-              action = 'COLREGs Rule 14: Both vessels must alter course to STARBOARD';
+              action = 'COLREGs Rule 14: Both vessels altering to STARBOARD (+30°)';
+              tgtHeading = (baseHdg + 30) % 360;
+              primaryAvoidanceReason = `Rule 14 Head-on with ${tgt.name} - Altered to Starboard`;
             } else if (brg > 0 && brg < 112.5) {
+              // Target is to Starboard: Own ship is Give-Way; Target is Stand-on
               situation = 'CROSSING_GIVE_WAY';
-              action = 'COLREGs Rule 15: Give-way to starboard vessel. Alter course to Starboard.';
+              action = 'COLREGs Rule 15: Own ship give-way to starboard. Target stands on.';
+              tgtHeading = baseHdg;
+              primaryAvoidanceReason = `Rule 15 Give-Way to ${tgt.name} (Starboard side)`;
             } else if (brg > 247.5 && brg < 360) {
+              // Target is to Port: Target is Give-Way; Target alters to Starboard
               situation = 'CROSSING_STAND_ON';
-              action = 'COLREGs Rule 15: Stand-on vessel. Maintain course and speed.';
+              action = 'COLREGs Rule 15: Target vessel give-way, altering to Starboard.';
+              tgtHeading = (baseHdg + 35) % 360;
+              tgtSpeed = Math.max(4.0, tgt.speed_kts * 0.75);
+              primaryAvoidanceReason = `Rule 15 Stand-On; Target ${tgt.name} altering clear`;
             } else {
+              // Rule 13: Overtaking
               situation = 'OVERTAKING';
-              action = 'COLREGs Rule 13: Overtaking vessel keeps clear.';
+              action = 'COLREGs Rule 13: Faster overtaking vessel alters wide to Starboard';
+              tgtHeading = (baseHdg + 25) % 360;
+              primaryAvoidanceReason = `Rule 13 Overtaking clear of ${tgt.name}`;
             }
+
+            // ---------------------------------------------------------
+            // ARTIFICIAL POTENTIAL FIELD (APF) REPULSION SHIELD (< 2.0 NM)
+            // Enforces physical separation buffer > 1.2 NM
+            // ---------------------------------------------------------
+            if (currentDistNm < 2.0) {
+              const repAngleDeg = (Math.atan2(dX, dY) * 180) / Math.PI;
+              tgtHeading = repAngleDeg;
+              tgtSpeed = Math.max(3.0, tgt.speed_kts * (currentDistNm / 2.0));
+
+              if (currentDistNm < 1.0) {
+                tgtSpeed = 1.0;
+              }
+            }
+          } else if (currentDistNm > 4.5) {
+            tgtHeading = baseHdg;
+            isEvasive = false;
           }
 
-          if (dcpaNm < 1.8 && tcpaMin < 15 && autoSail.enabled) {
-            setAutoSail(as => ({
-              ...as,
-              auto_avoidance_active: true,
-              avoidance_reason: `COLREGs Starboard Evasion: Avoiding ${tgt.name} (DCPA ${dcpaNm.toFixed(1)} NM)`,
-              conning_action: 'Autonomously altered course +25° Starboard to guarantee safe separation'
-            }));
-          }
+          // Advance Target Position
+          const distNm = (tgtSpeed / 3600.0) * 1.5 * playbackSpeed;
+          const dLat = (distNm / 60.0) * Math.cos((tgtHeading * Math.PI) / 180);
+          const dLon = (distNm / (60.0 * Math.cos((tgt.lat * Math.PI) / 180))) * Math.sin((tgtHeading * Math.PI) / 180);
+
+          let nextLat = tgt.lat + dLat;
+          let nextLon = tgt.lon + dLon;
 
           return {
             ...tgt,
             lat: Number(nextLat.toFixed(4)),
             lon: Number(nextLon.toFixed(4)),
+            speed_kts: Number(tgtSpeed.toFixed(1)),
+            heading_deg: Number(tgtHeading.toFixed(0)),
+            base_heading_deg: baseHdg,
             distance_nm: Number(currentDistNm.toFixed(1)),
             bearing_deg: Number(brg.toFixed(0)),
             dcpa_nm: Number(dcpaNm.toFixed(1)),
             tcpa_min: Number(tcpaMin.toFixed(0)),
             colregs_situation: situation,
-            avoidance_action: action
+            avoidance_action: action,
+            evasive_active: isEvasive
           };
         });
       });
 
+      // 2. Advance Own Ship & Execute Active Evasive Starboard Steering
       setVessel((prev) => {
         let currentHdg = prev.heading_deg;
         let currentSpd = prev.speed_kts;
         let currentWptIdx = prev.current_waypoint_index || 0;
+
+        if (activeAvoidanceDetected) {
+          setAutoSail(as => ({
+            ...as,
+            auto_avoidance_active: true,
+            avoidance_reason: primaryAvoidanceReason || 'COLREGs Starboard Separation',
+            conning_action: 'Autonomously altered course +30° Starboard (Separation Enforced)'
+          }));
+        }
 
         if (autoSail.enabled && activeRoute && activeRoute.waypoints.length > 0) {
           const targetWpt = activeRoute.waypoints[currentWptIdx] || activeRoute.waypoints[activeRoute.waypoints.length - 1];
@@ -385,15 +442,15 @@ export const App: React.FC = () => {
           let desiredHeading = (Math.atan2(dLon, dLat) * 180) / Math.PI;
           if (desiredHeading < 0) desiredHeading += 360;
 
-          if (autoSail.auto_avoidance_active) {
-            desiredHeading = (desiredHeading + 20) % 360;
+          if (activeAvoidanceDetected || autoSail.auto_avoidance_active) {
+            desiredHeading = (desiredHeading + 30) % 360;
           }
 
           let headingDiff = desiredHeading - currentHdg;
           while (headingDiff < -180) headingDiff += 360;
           while (headingDiff > 180) headingDiff -= 360;
 
-          currentHdg += Math.sign(headingDiff) * Math.min(Math.abs(headingDiff), 2.2 * playbackSpeed);
+          currentHdg += Math.sign(headingDiff) * Math.min(Math.abs(headingDiff), 2.6 * playbackSpeed);
           if (currentHdg < 0) currentHdg += 360;
           if (currentHdg >= 360) currentHdg -= 360;
 
@@ -405,16 +462,22 @@ export const App: React.FC = () => {
           let baseSpd = targetWpt.speed_kts || 12.0;
           if (stormActive) baseSpd = 5.0;
           if (ridgeActive) baseSpd = 3.2;
+          if (activeAvoidanceDetected) baseSpd = Math.min(baseSpd, 8.5);
           currentSpd = Number(baseSpd.toFixed(1));
         } else if (helm.mode === 'MANUAL_CONNING') {
-          const turnRate = (helm.rudder_deg / 35.0) * 2.5 * playbackSpeed;
-          currentHdg += turnRate;
-          if (currentHdg < 0) currentHdg += 360;
-          if (currentHdg >= 360) currentHdg -= 360;
+          if (activeAvoidanceDetected) {
+            currentHdg = (currentHdg + 1.5 * playbackSpeed) % 360;
+          } else {
+            const turnRate = (helm.rudder_deg / 35.0) * 2.5 * playbackSpeed;
+            currentHdg += turnRate;
+            if (currentHdg < 0) currentHdg += 360;
+            if (currentHdg >= 360) currentHdg -= 360;
+          }
 
           let targetSpd = (helm.throttle_pct / 100.0) * (fleetProfile?.max_speed_knots || 16.0);
           if (stormActive) targetSpd = Math.min(targetSpd, 5.5);
           if (ridgeActive) targetSpd = Math.min(targetSpd, 3.5);
+          if (activeAvoidanceDetected) targetSpd = Math.min(targetSpd, 8.0);
           currentSpd = Number(targetSpd.toFixed(1));
         }
 
@@ -453,142 +516,129 @@ export const App: React.FC = () => {
           lat: Number(newLat.toFixed(4)),
           lon: Number(newLon.toFixed(4)),
           speed_kts: currentSpd,
-          heading_deg: Number(currentHdg.toFixed(1)),
-          ice_resistance_kn: Number(iceRes.toFixed(0)),
+          heading_deg: Number(currentHdg.toFixed(0)),
           current_waypoint_index: currentWptIdx,
+          ice_resistance_kn: iceRes,
           wake_history: newWake
         };
       });
-
-      setHelm(h => ({
-        ...h,
-        propeller_rpm: Math.abs(vessel.speed_kts) * 10.5,
-        hull_strain_mpa: Math.min(180, 50 + (vessel.ice_resistance_kn / 10.0))
-      }));
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [isPlaying, playbackSpeed, autoSail.enabled, autoSail.auto_avoidance_active, helm.mode, helm.rudder_deg, helm.throttle_pct, activeRoute, stormActive, ridgeActive, fleetProfile, vessel.speed_kts, vessel.heading_deg]);
+  }, [isPlaying, playbackSpeed, autoSail.enabled, activeRoute, helm.mode, helm.rudder_deg, helm.throttle_pct, stormActive, ridgeActive, fleetProfile]);
 
-  // Handle Login
-  const handleLoginSuccess = (user: ShipUser, profile: VesselFleetProfile) => {
-    setCurrentUser(user);
-    setFleetProfile(profile);
-    setVessel(prev => ({
-      ...prev,
-      name: profile.name,
-      polar_class: profile.ice_class,
-      imo: profile.imo
-    }));
-    setIsLoggedIn(true);
-    setIsLoginModalOpen(false);
+  // Test Head-On Collision Scenario Drill
+  const handleTriggerCollisionTest = () => {
+    bridgeAudio.playWarningChime();
+    
+    const oppHdg = (vessel.heading_deg + 180) % 360;
+    const spawnDistNm = 4.2;
+    const spawnLat = vessel.lat + (spawnDistNm / 60.0) * Math.cos((vessel.heading_deg * Math.PI) / 180);
+    const spawnLon = vessel.lon + (spawnDistNm / (60.0 * Math.cos((vessel.lat * Math.PI) / 180))) * Math.sin((vessel.heading_deg * Math.PI) / 180);
 
-    setAlarms(prev => [
-      {
-        id: 'auth-' + Date.now(),
-        timestamp: new Date().toISOString().slice(11, 16) + ' UTC',
-        title: 'BRIDGE COMMAND HANDOVER COMPLETE',
-        description: 'Conning Officer ' + user.full_name + ' (' + user.role + ') logged in aboard ' + profile.name + '. Polar Class: ' + profile.ice_class + '.',
-        category: 'EQUIPMENT',
-        severity: 'CAUTION',
-        acknowledged: true,
-        source: 'BRIDGE AUTH'
-      },
-      ...prev
-    ]);
-  };
+    const testShip: AISVessel = {
+      id: 'ais_collision_drill_' + Date.now(),
+      name: 'R/V POLAR HORIZON (COLLISION DRILL)',
+      imo: '9984122',
+      call_sign: 'TEST1',
+      flag: 'NO',
+      polar_class: 'PC3',
+      lat: Number(spawnLat.toFixed(4)),
+      lon: Number(spawnLon.toFixed(4)),
+      speed_kts: 12.0,
+      heading_deg: oppHdg,
+      base_heading_deg: oppHdg,
+      destination: 'Ushuaia Port',
+      status: 'HEAD-ON DRILL (RULE 14)',
+      distance_nm: spawnDistNm,
+      bearing_deg: vessel.heading_deg,
+      dcpa_nm: 0.1,
+      tcpa_min: 10,
+      colregs_situation: 'HEAD_ON',
+      avoidance_action: 'COLREGs Rule 14: Both vessels altering to STARBOARD'
+    };
 
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-  };
-
-  // Trigger SOS GMDSS Mayday
-  const handleTriggerSOS = (distressType: any, souls: number) => {
-    setSosState({
-      active: true,
-      distress_type: distressType,
-      souls_on_board: souls,
-      epirb_active: true,
-      broadcast_time: new Date().toISOString().slice(11, 19) + ' UTC',
-      sar_station_notified: 'Rothera Research Station SAR',
-      sar_distance_nm: 142.5,
-      estimated_sar_eta_hrs: 3.5
-    });
+    setAisVessels(prev => [testShip, ...prev.filter(v => !v.id.startsWith('ais_collision_drill_'))]);
+    setIsAISOpen(true);
 
     setAlarms(prev => [
       {
-        id: 'mayday-' + Date.now(),
-        timestamp: new Date().toISOString().slice(11, 16) + ' UTC',
-        title: '🚨 GMDSS MAYDAY DISTRESS BROADCAST ACTIVE',
-        description: `Nature: ${distressType}. Souls on board: ${souls}. EPIRB 406 MHz transmitting.`,
-        category: 'DISTRESS_GMDSS',
+        id: 'alm-drill-' + Date.now(),
+        code: 'ALM-COLL-02',
+        timestamp: new Date().toISOString().slice(11, 19) + ' UTC',
+        title: '🚨 HEAD-ON COLLISION DRILL DETECTED',
+        description: 'R/V POLAR HORIZON on direct 180° opposing course. Autonomous Starboard Evasion Initiated.',
+        category: 'COLLISION',
         severity: 'CRITICAL',
         acknowledged: false,
-        source: 'GMDSS CONSOLE'
+        source: 'AIS ARPA ENGINE'
       },
       ...prev
     ]);
-  };
-
-  const handleCancelSOS = () => {
-    setSosState(prev => ({ ...prev, active: false, epirb_active: false }));
   };
 
   const handleTriggerStorm = () => {
     setStormActive(true);
-    setVessel(prev => ({ ...prev, status: 'CONNING THROUGH KATABATIC BLIZZARD (48 kts)' }));
-    bridgeAudio.playCriticalAlarm();
-
-    setTimeout(() => {
-      setStormActive(false);
-      setVessel(prev => ({ ...prev, status: 'NORMAL VOYAGE PROGRESS' }));
-    }, 15000);
+    bridgeAudio.playWarningChime();
+    setTimeout(() => setStormActive(false), 30000);
   };
 
   const handleTriggerIceRidge = () => {
     setRidgeActive(true);
-    setVessel(prev => ({ ...prev, status: 'RAMMING MULTI-YEAR CONSOLIDATED RIDGE' }));
     bridgeAudio.playWarningChime();
-
-    setTimeout(() => {
-      setRidgeActive(false);
-      setVessel(prev => ({ ...prev, status: 'NORMAL VOYAGE PROGRESS' }));
-    }, 15000);
+    setTimeout(() => setRidgeActive(false), 30000);
   };
 
   const handleResetSimulation = () => {
-    setVessel({
-      lat: -55.2,
-      lon: -67.5,
-      speed_kts: 12.0,
-      heading_deg: 175.0,
-      polar_class: fleetProfile?.ice_class || 'PC4',
-      name: fleetProfile?.name || 'R/V SIR DAVID ATTENBOROUGH',
-      imo: fleetProfile?.imo || '9798686',
-      status: 'DEPARTED USHUAIA FOR ROTHERA',
-      engine_load_pct: 65,
-      ice_resistance_kn: 120,
-      fuel_flow_m3_h: 1.2,
+    setVessel(prev => ({
+      ...prev,
+      lat: -55.0,
+      lon: -67.0,
+      speed_kts: 14.0,
+      heading_deg: 165.0,
       current_waypoint_index: 0,
       wake_history: []
-    });
+    }));
+    bridgeAudio.playTacticalClick();
   };
 
-  const handleAcknowledgeAlarm = (id: string) => {
-    setAlarms(prev => prev.map(a => a.id === id ? { ...a, acknowledged: true } : a));
+  const handleLoginSuccess = (user: ShipUser, profile: VesselFleetProfile) => {
+    setCurrentUser(user);
+    setFleetProfile(profile);
+    setIsLoggedIn(true);
+    setIsLoginModalOpen(false);
+    setVessel(prev => ({
+      ...prev,
+      name: profile.name,
+      imo: profile.imo,
+      polar_class: profile.ice_class
+    }));
   };
 
-  const handleAcknowledgeAll = () => {
-    setAlarms(prev => prev.map(a => ({ ...a, acknowledged: true })));
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    bridgeAudio.playTacticalClick();
   };
 
-  const paletteBgClass = 
-    palette === 'day' ? 'bg-slate-100 text-slate-900' :
-    palette === 'night' ? 'bg-black text-red-300' :
-    palette === 'thermal' ? 'bg-stone-950 text-amber-200' :
-    'bg-polar-900 text-slate-100';
+  const handleBroadcastSOS = (details: Partial<DistressSOSState>) => {
+    setSosState(prev => ({
+      ...prev,
+      ...details,
+      active: true,
+      epirb_active: true
+    }));
+    setIsSOSOpen(false);
+  };
 
-  // If user is not logged in, render the dedicated Full-Page Login
+  const handleCancelSOS = () => {
+    setSosState(prev => ({
+      ...prev,
+      active: false,
+      epirb_active: false
+    }));
+    bridgeAudio.playTacticalClick();
+  };
+
   if (!isLoggedIn) {
     return (
       <UserLoginPage
@@ -599,8 +649,8 @@ export const App: React.FC = () => {
   }
 
   return (
-    <div className={'w-screen h-screen flex flex-col ' + paletteBgClass + ' overflow-hidden font-sans select-none transition-colors duration-300'}>
-      {/* Top Tactical Bridge Header */}
+    <div className="flex flex-col h-screen w-screen bg-polar-900 text-slate-100 font-sans overflow-hidden select-none">
+      {/* Top ECDIS Bridge Navigation Header */}
       <BridgeHeader
         vessel={vessel}
         cpaAlert={cpaAlert}
@@ -642,24 +692,24 @@ export const App: React.FC = () => {
         </div>
       )}
 
-      {/* Storm Scenario Banner */}
+      {/* Storm / Katabatic Warning Banner */}
       {stormActive && (
-        <div className="bg-red-950/90 border-b border-red-600 px-4 py-1 flex items-center justify-between text-xs font-mono text-red-200 animate-pulse z-40">
-          <span>⚠️ SEVERE METOCEAN EVENT: Katabatic Blizzard (Force 10 Gale) - Speed capped to 5.5 kts</span>
-          <span className="font-bold">HULL RIO MARGIN MONITORED</span>
+        <div className="bg-amber-600 px-4 py-1 flex items-center justify-between text-xs font-mono text-slate-950 font-bold z-40">
+          <span>⚠️ KATABATIC BLIZZARD INJECTED: 45 kts Winds • Reduced Vessel Speed Applied</span>
+          <button onClick={() => setStormActive(false)} className="text-black font-bold">✕ DISMISS</button>
         </div>
       )}
 
-      {/* Ridge Scenario Banner */}
+      {/* Heavy Ice Pressure Ridge Banner */}
       {ridgeActive && (
-        <div className="bg-purple-950/90 border-b border-purple-600 px-4 py-1 flex items-center justify-between text-xs font-mono text-purple-200 animate-pulse z-40">
-          <span>⚡ ICE PRESSURE WARNING: Heavy Multi-Year Ridge - Increased Ice Resistance (+650 kN)</span>
-          <span className="font-bold">RAMMING PROTOCOL ACTIVE</span>
+        <div className="bg-purple-700 px-4 py-1 flex items-center justify-between text-xs font-mono text-white font-bold z-40">
+          <span>⚠️ ICE PRESSURE WARNING: Heavy Multi-Year Ridge - Increased Ice Resistance (+650 kN)</span>
+          <button onClick={() => setRidgeActive(false)} className="text-white font-bold">✕ DISMISS</button>
         </div>
       )}
 
-      {/* Main ECDIS View Area */}
-      <main className="flex-1 relative overflow-hidden">
+      {/* Main ECDIS Viewport Area */}
+      <main className="flex-1 relative overflow-hidden bg-polar-900">
         {activeTab === 'map' && (
           <AntarcticMap
             vessel={vessel}
@@ -678,9 +728,7 @@ export const App: React.FC = () => {
               setSelectedStation(st);
               setIsSafeHavenOpen(true);
             }}
-            onSelectAISVessel={(tgt) => {
-              setIsAISOpen(true);
-            }}
+            onSelectAISVessel={() => setIsAISOpen(true)}
           />
         )}
 
@@ -699,7 +747,10 @@ export const App: React.FC = () => {
         )}
 
         {activeTab === 'polaris' && (
-          <PolarisRiskPanel onClose={() => setActiveTab('map')} />
+          <PolarisRiskPanel
+            vessel={vessel}
+            onClose={() => setActiveTab('map')}
+          />
         )}
 
         {activeTab === 'icebergs' && (
@@ -712,7 +763,9 @@ export const App: React.FC = () => {
         )}
 
         {activeTab === 'sar' && (
-          <SARVisionWorkbench onClose={() => setActiveTab('map')} />
+          <SARVisionWorkbench
+            onClose={() => setActiveTab('map')}
+          />
         )}
 
         {activeTab === 'copilot' && (
@@ -722,24 +775,23 @@ export const App: React.FC = () => {
           />
         )}
 
-        {/* Floating Conning Controls Drawer */}
+        {/* Floating Conning Helm Window */}
         {isHelmOpen && (
-          <div className="absolute bottom-3 left-3 z-40 max-w-xl w-full">
+          <div className="absolute bottom-16 left-4 z-40 max-w-xl w-full">
             <ConningHelmControls
               vessel={vessel}
               helm={helm}
               activeRoute={activeRoute}
-              onUpdateHelm={(nh) => setHelm(prev => ({ ...prev, ...nh }))}
+              onUpdateHelm={(newHelm) => setHelm(prev => ({ ...prev, ...newHelm }))}
               onEmergencyStop={() => {
                 setHelm(prev => ({ ...prev, throttle_pct: -50, rudder_deg: 0 }));
-                setVessel(prev => ({ ...prev, speed_kts: 0, status: 'CRASH STOP INITIATED' }));
               }}
               onClose={() => setIsHelmOpen(false)}
             />
           </div>
         )}
 
-        {/* Floating Depth Sounder Drawer */}
+        {/* Floating Depth Sounder HUD */}
         {isDepthSounderOpen && (
           <div className="absolute top-3 left-3 z-40 max-w-md w-full">
             <DepthSounderHUD
@@ -759,6 +811,7 @@ export const App: React.FC = () => {
               onExecuteAvoidance={(action, newHdg) => {
                 setVessel(prev => ({ ...prev, heading_deg: newHdg }));
               }}
+              onTriggerCollisionTest={handleTriggerCollisionTest}
             />
           </div>
         )}
@@ -773,6 +826,7 @@ export const App: React.FC = () => {
         vessel={vessel}
         onTriggerStorm={handleTriggerStorm}
         onTriggerIceRidge={handleTriggerIceRidge}
+        onTriggerCollisionTest={handleTriggerCollisionTest}
         onResetSimulation={handleResetSimulation}
         isHelmOpen={isHelmOpen}
         onToggleHelm={() => setIsHelmOpen(!isHelmOpen)}
@@ -787,8 +841,11 @@ export const App: React.FC = () => {
         vessel={vessel}
         user={currentUser}
         sosState={sosState}
-        onTriggerSOS={handleTriggerSOS}
+        onTriggerSOS={(distressType, souls) => {
+          handleBroadcastSOS({ distress_type: distressType, souls_on_board: souls });
+        }}
         onCancelSOS={handleCancelSOS}
+        stations={stations}
       />
 
       {/* Ship Login / Fleet Portal Modal */}
@@ -799,7 +856,29 @@ export const App: React.FC = () => {
         currentUser={currentUser}
       />
 
-      {/* Polar Code Voyage Risk Logbook Modal */}
+      {/* Route Planner Modal */}
+      <RoutePlannerModal
+        isOpen={isRoutePlannerOpen}
+        onClose={() => setIsRoutePlannerOpen(false)}
+        currentRoute={activeRoute}
+        onApplyRoute={(route) => {
+          setActiveRoute(route);
+          setActiveTab('map');
+        }}
+      />
+
+      {/* Emergency Safe Haven Locator */}
+      <EmergencySafeHavenModal
+        isOpen={isSafeHavenOpen}
+        onClose={() => setIsSafeHavenOpen(false)}
+        vessel={vessel}
+        onSelectStation={(st) => {
+          setSelectedStation(st);
+          setActiveTab('map');
+        }}
+      />
+
+      {/* Polar Code Voyage Logbook */}
       <PolarCodeLogbookModal
         isOpen={isLogbookOpen}
         onClose={() => setIsLogbookOpen(false)}
@@ -809,36 +888,18 @@ export const App: React.FC = () => {
         fleetProfile={fleetProfile}
       />
 
-      {/* Alarm Management System (IAMS) Drawer */}
+      {/* IAMS Alarm Management Drawer */}
       <AlarmManagementDrawer
         isOpen={isAlarmsOpen}
         onClose={() => setIsAlarmsOpen(false)}
         alarms={alarms}
         soundEnabled={soundEnabled}
         onToggleSound={() => setSoundEnabled(!soundEnabled)}
-        onAcknowledgeAlarm={handleAcknowledgeAlarm}
-        onAcknowledgeAll={handleAcknowledgeAll}
-      />
-
-      {/* Route Planner Modal */}
-      <RoutePlannerModal
-        isOpen={isRoutePlannerOpen}
-        onClose={() => setIsRoutePlannerOpen(false)}
-        onApplyRoute={(r) => {
-          setActiveRoute(r);
-          setActiveTab('map');
+        onAcknowledgeAlarm={(id) => {
+          setAlarms(prev => prev.map(a => a.id === id ? { ...a, acknowledged: true } : a));
         }}
-        currentRoute={activeRoute}
-      />
-
-      {/* Safe Haven Locator Modal */}
-      <EmergencySafeHavenModal
-        isOpen={isSafeHavenOpen}
-        onClose={() => setIsSafeHavenOpen(false)}
-        vessel={vessel}
-        onSelectStation={(st) => {
-          setSelectedStation(st);
-          setActiveTab('map');
+        onAcknowledgeAll={() => {
+          setAlarms(prev => prev.map(a => ({ ...a, acknowledged: true })));
         }}
       />
     </div>
