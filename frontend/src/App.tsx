@@ -393,7 +393,7 @@ export const App: React.FC = () => {
           }
 
           // Advance Target Position with responsive time warp
-          const distNm = (tgtSpeed / 3600.0) * 8.0 * playbackSpeed;
+          const distNm = (tgtSpeed / 3600.0) * 20.0 * playbackSpeed;
           const dLat = (distNm / 60.0) * Math.cos((tgtHeading * Math.PI) / 180);
           const dLon = (distNm / (60.0 * Math.cos((tgt.lat * Math.PI) / 180))) * Math.sin((tgtHeading * Math.PI) / 180);
 
@@ -482,7 +482,7 @@ export const App: React.FC = () => {
         }
 
         // Advance Own Ship with responsive time warp
-        const distNm = (Math.abs(currentSpd) / 3600.0) * 8.0 * playbackSpeed;
+        const distNm = (Math.abs(currentSpd) / 3600.0) * 20.0 * playbackSpeed;
         const dLatDeg = (distNm / 60.0) * Math.cos((currentHdg * Math.PI) / 180);
         const dLonDeg = (distNm / (60.0 * Math.cos((prev.lat * Math.PI) / 180))) * Math.sin((currentHdg * Math.PI) / 180);
 
@@ -501,7 +501,7 @@ export const App: React.FC = () => {
         if (ridgeActive) iceRes += 650;
 
         const newWake = [...(prev.wake_history || [])];
-        if (newWake.length === 0 || Math.hypot((newWake[newWake.length - 1].lat - newLat) * 60, (newWake[newWake.length - 1].lon - newLon) * 60) > 2.0) {
+        if (newWake.length === 0 || Math.hypot((newWake[newWake.length - 1].lat - newLat) * 60, (newWake[newWake.length - 1].lon - newLon) * 60) > 0.6) {
           newWake.push({
             lat: Number(newLat.toFixed(4)),
             lon: Number(newLon.toFixed(4)),
@@ -523,7 +523,7 @@ export const App: React.FC = () => {
           wake_history: newWake
         };
       });
-    }, 1000);
+    }, 300);
 
     return () => clearInterval(interval);
   }, [isPlaying, playbackSpeed, autoSail.enabled, activeRoute, helm.mode, helm.rudder_deg, helm.throttle_pct, stormActive, ridgeActive, fleetProfile]);

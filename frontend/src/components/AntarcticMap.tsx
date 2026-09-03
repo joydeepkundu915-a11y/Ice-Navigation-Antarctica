@@ -90,128 +90,13 @@ const createStationIcon = (isShelter: boolean) => L.divIcon({
   iconAnchor: [10, 10]
 });
 
-// Dedicated Interactive Glassmorphic Zoom Controller inside Leaflet
-const MapZoomController: React.FC<{
-  vesselLat: number;
-  vesselLon: number;
-}> = ({ vesselLat, vesselLon }) => {
+// React component to capture the Leaflet map instance
+const MapController: React.FC<{ onMapReady: (map: L.Map) => void }> = ({ onMapReady }) => {
   const map = useMap();
-  const [currentZoom, setCurrentZoom] = useState<number>(map.getZoom());
-
   useEffect(() => {
-    const onZoom = () => setCurrentZoom(map.getZoom());
-    map.on('zoomend', onZoom);
-    return () => {
-      map.off('zoomend', onZoom);
-    };
-  }, [map]);
-
-  const handleZoomIn = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    map.zoomIn();
-    bridgeAudio.playTacticalClick();
-  };
-
-  const handleZoomOut = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    map.zoomOut();
-    bridgeAudio.playTacticalClick();
-  };
-
-  const handleRecenter = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    map.flyTo([vesselLat, vesselLon], Math.max(6, map.getZoom()), { animate: true, duration: 1.0 });
-    bridgeAudio.playTacticalClick();
-  };
-
-  const handleResetPolarView = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    map.flyTo([-65.0, -60.0], 5, { animate: true, duration: 1.0 });
-    bridgeAudio.playTacticalClick();
-  };
-
-  return (
-    <div className="leaflet-top leaflet-left !top-4 !left-4 z-[1000] pointer-events-auto flex flex-col space-y-1.5 font-mono select-none">
-      <div className="glass-panel p-1.5 rounded-2xl border border-white/20 shadow-2xl flex flex-col space-y-1 backdrop-blur-xl">
-        {/* Zoom In Button */}
-        <button
-          type="button"
-          onClick={handleZoomIn}
-          className="w-10 h-10 rounded-xl glass-card hover:bg-sky-600/80 text-white font-bold text-lg flex items-center justify-center transition active:scale-90 border border-white/10 shadow-lg"
-          title="Zoom In [ + ]"
-        >
-          <Plus className="w-5 h-5 text-sky-300" />
-        </button>
-
-        {/* Current Zoom Level Badge */}
-        <div className="px-1 py-0.5 text-center text-[10px] text-amber-300 font-bold tracking-wider">
-          {currentZoom}x
-        </div>
-
-        {/* Zoom Out Button */}
-        <button
-          type="button"
-          onClick={handleZoomOut}
-          className="w-10 h-10 rounded-xl glass-card hover:bg-sky-600/80 text-white font-bold text-lg flex items-center justify-center transition active:scale-90 border border-white/10 shadow-lg"
-          title="Zoom Out [ − ]"
-        >
-          <Minus className="w-5 h-5 text-sky-300" />
-        </button>
-
-        {/* Quick Zoom Level Selectors (2x, 3x, 5x, 7x, 10x) */}
-        <div className="flex flex-col space-y-1 pt-1 border-t border-white/10">
-          <span className="text-[8px] text-slate-400 text-center font-bold">ZOOM</span>
-          {[2, 3, 5, 7, 10].map((lvl) => (
-            <button
-              key={lvl}
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                map.setZoom(lvl);
-                bridgeAudio.playTacticalClick();
-              }}
-              className={
-                'w-10 py-1 rounded-lg text-[10px] font-bold transition active:scale-90 border ' +
-                (currentZoom === lvl
-                  ? 'bg-gradient-to-r from-sky-600 to-cyan-500 text-white border-sky-300 shadow-md shadow-sky-500/50'
-                  : 'glass-card text-slate-300 hover:text-white border-white/10')
-              }
-              title={`Direct Zoom to ${lvl}x`}
-            >
-              {lvl}x
-            </button>
-          ))}
-        </div>
-
-        <div className="w-full h-px bg-white/10 my-0.5" />
-
-        {/* Recenter on Vessel */}
-        <button
-          type="button"
-          onClick={handleRecenter}
-          className="w-10 h-10 rounded-xl glass-card hover:bg-emerald-600/80 text-emerald-300 flex items-center justify-center transition active:scale-90 border border-white/10 shadow-lg"
-          title="Center on Ship Conning Position"
-        >
-          <Crosshair className="w-5 h-5 text-emerald-400" />
-        </button>
-
-        {/* Reset Antarctic Overview */}
-        <button
-          type="button"
-          onClick={handleResetPolarView}
-          className="w-10 h-10 rounded-xl glass-card hover:bg-amber-600/80 text-amber-300 flex items-center justify-center transition active:scale-90 border border-white/10 shadow-lg"
-          title="Reset Antarctic Overview"
-        >
-          <Maximize2 className="w-4 h-4 text-amber-400" />
-        </button>
-      </div>
-    </div>
-  );
+    onMapReady(map);
+  }, [map, onMapReady]);
+  return null;
 };
 
 interface AntarcticMapProps {
@@ -241,6 +126,8 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
   onSelectStation,
   onSelectAISVessel
 }) => {
+  const [mapInstance, setMapInstance] = useState<L.Map | null>(null);
+  const [currentZoom, setCurrentZoom] = useState<number>(5);
   const [showSIC, setShowSIC] = useState<boolean>(true);
   const [showIcebergs, setShowIcebergs] = useState<boolean>(true);
   const [showStations, setShowStations] = useState<boolean>(true);
@@ -250,6 +137,17 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
   const [showAIS, setShowAIS] = useState<boolean>(true);
   const [showSafetyDomains, setShowSafetyDomains] = useState<boolean>(true);
   const [mapCenter, setMapCenter] = useState<[number, number]>([-65.0, -60.0]);
+
+  // Synchronize zoom state with Leaflet map events
+  useEffect(() => {
+    if (!mapInstance) return;
+    const updateZoom = () => setCurrentZoom(mapInstance.getZoom());
+    mapInstance.on('zoomend', updateZoom);
+    setCurrentZoom(mapInstance.getZoom());
+    return () => {
+      mapInstance.off('zoomend', updateZoom);
+    };
+  }, [mapInstance]);
 
   const tileUrl = palette === 'day'
     ? 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'
@@ -271,8 +169,115 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
   return (
     <div className="relative w-full h-full bg-polar-900 overflow-hidden flex flex-col select-none">
       
-      {/* Floating Tactical Layer Overlay HUD */}
-      <div className="absolute top-3 right-3 z-[1000] glass-panel p-3 rounded-xl border border-white/10 shadow-2xl flex flex-col space-y-2 text-[11px] font-mono">
+      {/* ========================================================================= */}
+      {/* GUARANTEED INTERACTIVE ZOOM CONTROLLER HUD (TOP-LEFT, Z-INDEX 1200)       */}
+      {/* Fully independent HTML overlay: 100% click guaranteed for 2x, 3x, 5x etc. */}
+      {/* ========================================================================= */}
+      <div className="absolute top-4 left-4 z-[1200] pointer-events-auto flex flex-col space-y-1.5 font-mono select-none">
+        <div className="glass-panel p-2 rounded-2xl border border-white/20 shadow-2xl flex flex-col items-center space-y-1.5 backdrop-blur-2xl">
+          
+          {/* Zoom In Button */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (mapInstance) {
+                mapInstance.zoomIn();
+                bridgeAudio.playTacticalClick();
+              }
+            }}
+            className="w-9 h-9 rounded-xl glass-card hover:bg-sky-600 text-white font-bold flex items-center justify-center transition active:scale-90 border border-white/10 shadow-lg"
+            title="Zoom In [ + ]"
+          >
+            <Plus className="w-5 h-5 text-sky-300" />
+          </button>
+
+          {/* Current Zoom Badge */}
+          <div className="px-1.5 py-0.5 rounded text-center text-[10px] text-amber-300 font-extrabold tracking-wider bg-black/40 border border-white/10 w-full">
+            {currentZoom}x
+          </div>
+
+          {/* Zoom Out Button */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (mapInstance) {
+                mapInstance.zoomOut();
+                bridgeAudio.playTacticalClick();
+              }
+            }}
+            className="w-9 h-9 rounded-xl glass-card hover:bg-sky-600 text-white font-bold flex items-center justify-center transition active:scale-90 border border-white/10 shadow-lg"
+            title="Zoom Out [ − ]"
+          >
+            <Minus className="w-5 h-5 text-sky-300" />
+          </button>
+
+          {/* Direct 1-Click Quick Zoom Pills (2x, 3x, 5x, 7x, 10x) */}
+          <div className="flex flex-col space-y-1 pt-1.5 border-t border-white/10 w-full">
+            <span className="text-[8px] text-slate-400 text-center font-extrabold tracking-wider">ZOOM</span>
+            {[2, 3, 5, 7, 10].map((lvl) => (
+              <button
+                key={lvl}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (mapInstance) {
+                    mapInstance.setZoom(lvl);
+                    bridgeAudio.playTacticalClick();
+                  }
+                }}
+                className={
+                  'w-9 py-1 rounded-lg text-[10px] font-extrabold transition active:scale-90 border ' +
+                  (currentZoom === lvl
+                    ? 'bg-gradient-to-r from-sky-600 to-cyan-500 text-white border-sky-300 shadow-lg shadow-sky-500/50 ring-1 ring-white/50'
+                    : 'glass-card text-slate-300 hover:text-white border-white/10 hover:bg-white/10')
+                }
+                title={`Instantly set map magnification to ${lvl}x`}
+              >
+                {lvl}x
+              </button>
+            ))}
+          </div>
+
+          <div className="w-full h-px bg-white/10 my-0.5" />
+
+          {/* Recenter on Vessel */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (mapInstance) {
+                mapInstance.flyTo([vessel.lat, vessel.lon], Math.max(6, currentZoom), { animate: true, duration: 1.0 });
+                bridgeAudio.playTacticalClick();
+              }
+            }}
+            className="w-9 h-9 rounded-xl glass-card hover:bg-emerald-600 text-emerald-300 flex items-center justify-center transition active:scale-90 border border-white/10 shadow-lg"
+            title="Center camera on Ship Conning position"
+          >
+            <Crosshair className="w-4 h-4 text-emerald-400" />
+          </button>
+
+          {/* Reset Polar Overview */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (mapInstance) {
+                mapInstance.flyTo([-65.0, -60.0], 4, { animate: true, duration: 1.0 });
+                bridgeAudio.playTacticalClick();
+              }
+            }}
+            className="w-9 h-9 rounded-xl glass-card hover:bg-amber-600 text-amber-300 flex items-center justify-center transition active:scale-90 border border-white/10 shadow-lg"
+            title="Reset Antarctic continent overview"
+          >
+            <Maximize2 className="w-4 h-4 text-amber-400" />
+          </button>
+        </div>
+      </div>
+
+      {/* Floating Tactical Layer Overlay HUD (Top-Right) */}
+      <div className="absolute top-3 right-3 z-[1100] glass-panel p-3 rounded-xl border border-white/10 shadow-2xl flex flex-col space-y-2 text-[11px] font-mono">
         <div className="flex items-center space-x-2 text-slate-200 font-bold border-b border-white/10 pb-1.5">
           <Layers className="w-4 h-4 text-amber-400" />
           <span className="tracking-wide">POLAR CHART OVERLAYS</span>
@@ -337,7 +342,7 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
 
       {/* Dynamic Anti-Collision Threat Alert Banner on Map */}
       {isOwnShipEvasive && (
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[1000] bg-red-950/90 border-2 border-red-500 rounded-xl px-4 py-2 shadow-2xl backdrop-blur-md flex items-center space-x-3 text-xs font-mono animate-pulse">
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[1100] bg-red-950/90 border-2 border-red-500 rounded-xl px-4 py-2 shadow-2xl backdrop-blur-md flex items-center space-x-3 text-xs font-mono animate-pulse">
           <ShieldAlert className="w-5 h-5 text-red-400 flex-shrink-0 animate-bounce" />
           <div>
             <span className="font-extrabold text-white block">
@@ -351,7 +356,7 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
       )}
 
       {/* Floating Tactical Nautical Compass Rose HUD (Bottom-Right) */}
-      <div className="absolute bottom-4 right-4 z-[1000] glass-panel p-3 rounded-2xl border border-white/10 shadow-2xl flex items-center space-x-3 text-xs font-mono pointer-events-auto">
+      <div className="absolute bottom-4 right-4 z-[1100] glass-panel p-3 rounded-2xl border border-white/10 shadow-2xl flex items-center space-x-3 text-xs font-mono pointer-events-auto">
         <div className="relative w-12 h-12 flex items-center justify-center">
           <div 
             className="w-full h-full rounded-full border border-sky-400/40 border-dashed flex items-center justify-center transition-transform duration-500"
@@ -379,7 +384,7 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
       </div>
 
       {/* Map Legend (Bottom-Left) */}
-      <div className="absolute bottom-4 left-3 z-[1000] glass-panel p-2.5 rounded-xl border border-white/10 shadow-2xl text-[10px] font-mono flex flex-col space-y-1.5 pointer-events-auto">
+      <div className="absolute bottom-4 left-3 z-[1100] glass-panel p-2.5 rounded-xl border border-white/10 shadow-2xl text-[10px] font-mono flex flex-col space-y-1.5 pointer-events-auto">
         <span className="text-slate-400 font-bold border-b border-white/10 pb-1 flex items-center space-x-1">
           <Compass className="w-3 h-3 text-amber-400" />
           <span>NAVIGATION & SAFETY LEGEND</span>
@@ -417,8 +422,8 @@ export const AntarcticMap: React.FC<AntarcticMapProps> = ({
       >
         <TileLayer url={tileUrl} />
 
-        {/* Dedicated Interactive Zoom Controls & Recenter HUD */}
-        <MapZoomController vesselLat={vessel.lat} vesselLon={vessel.lon} />
+        {/* Map Controller Hook */}
+        <MapController onMapReady={(map) => setMapInstance(map)} />
 
         {/* 1. Sea Ice Concentration Circles */}
         {showSIC && iceGrid && iceGrid.map((pt, idx) => {
