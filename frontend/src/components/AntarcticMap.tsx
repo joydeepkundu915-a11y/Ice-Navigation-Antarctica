@@ -162,6 +162,32 @@ const MapZoomController: React.FC<{
           <Minus className="w-5 h-5 text-sky-300" />
         </button>
 
+        {/* Quick Zoom Level Selectors (2x, 3x, 5x, 7x, 10x) */}
+        <div className="flex flex-col space-y-1 pt-1 border-t border-white/10">
+          <span className="text-[8px] text-slate-400 text-center font-bold">ZOOM</span>
+          {[2, 3, 5, 7, 10].map((lvl) => (
+            <button
+              key={lvl}
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                map.setZoom(lvl);
+                bridgeAudio.playTacticalClick();
+              }}
+              className={
+                'w-10 py-1 rounded-lg text-[10px] font-bold transition active:scale-90 border ' +
+                (currentZoom === lvl
+                  ? 'bg-gradient-to-r from-sky-600 to-cyan-500 text-white border-sky-300 shadow-md shadow-sky-500/50'
+                  : 'glass-card text-slate-300 hover:text-white border-white/10')
+              }
+              title={`Direct Zoom to ${lvl}x`}
+            >
+              {lvl}x
+            </button>
+          ))}
+        </div>
+
         <div className="w-full h-px bg-white/10 my-0.5" />
 
         {/* Recenter on Vessel */}

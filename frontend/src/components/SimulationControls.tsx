@@ -71,11 +71,13 @@ export const SimulationControls: React.FC<SimulationControlsProps> = ({
           <span>{isPlaying ? 'HYDRO ACTIVE' : 'SIM PAUSED'}</span>
         </button>
 
-        {/* Speed Multipliers */}
-        <div className="flex items-center space-x-0.5 bg-polar-950/80 p-0.5 rounded-lg border border-white/10 shadow-inner">
-          {[1, 2, 5, 10, 20].map((spd) => (
+        {/* Simulation Speed Multipliers */}
+        <div className="flex items-center space-x-1 bg-polar-950/80 px-1 py-0.5 rounded-lg border border-white/10 shadow-inner">
+          <span className="text-[9px] text-slate-400 font-bold hidden sm:inline">WARP:</span>
+          {[1, 2, 3, 5, 10, 20].map((spd) => (
             <button
               key={spd}
+              type="button"
               onClick={() => {
                 onSetPlaybackSpeed(spd);
                 bridgeAudio.playTacticalClick();

@@ -392,8 +392,8 @@ export const App: React.FC = () => {
             isEvasive = false;
           }
 
-          // Advance Target Position
-          const distNm = (tgtSpeed / 3600.0) * 1.5 * playbackSpeed;
+          // Advance Target Position with responsive time warp
+          const distNm = (tgtSpeed / 3600.0) * 8.0 * playbackSpeed;
           const dLat = (distNm / 60.0) * Math.cos((tgtHeading * Math.PI) / 180);
           const dLon = (distNm / (60.0 * Math.cos((tgt.lat * Math.PI) / 180))) * Math.sin((tgtHeading * Math.PI) / 180);
 
@@ -481,7 +481,8 @@ export const App: React.FC = () => {
           currentSpd = Number(targetSpd.toFixed(1));
         }
 
-        const distNm = (Math.abs(currentSpd) / 3600.0) * 1.5 * playbackSpeed;
+        // Advance Own Ship with responsive time warp
+        const distNm = (Math.abs(currentSpd) / 3600.0) * 8.0 * playbackSpeed;
         const dLatDeg = (distNm / 60.0) * Math.cos((currentHdg * Math.PI) / 180);
         const dLonDeg = (distNm / (60.0 * Math.cos((prev.lat * Math.PI) / 180))) * Math.sin((currentHdg * Math.PI) / 180);
 
